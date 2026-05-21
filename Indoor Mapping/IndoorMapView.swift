@@ -4,14 +4,17 @@ import MapKit
 struct IndoorMapView: UIViewRepresentable {
     var floorPlanImage: UIImage
     
-    // The geographic coordinates pinning the Top-Left and Bottom-Right corners of the image.
-    var bounds: [CLLocationCoordinate2D]
+    // Dynamic Overlay Properties
+    var overlayCenter: CLLocationCoordinate2D
+    var overlayWidthMeters: Double
+    var overlayHeightMeters: Double
+    var overlayRotationDegrees: Double
+    var overlayAlpha: Double
     
-    // An optional route to draw on the map
     var route: MKPolyline?
     
-    // Controls the map's tracking behavior (following the user)
     @Binding var trackingMode: MKUserTrackingMode
+    @Binding var currentMapCenter: CLLocationCoordinate2D
     
     func makeUIView(context: Context) -> MKMapView {
         let mapView = MKMapView()
@@ -19,33 +22,18 @@ struct IndoorMapView: UIViewRepresentable {
         
         // Standard Map settings
         mapView.mapType = .standard
-        mapView.showsUserLocation = true // Displays the blue dot
+        mapView.showsUserLocation = true
         mapView.showsCompass = true
         mapView.showsScale = true
         mapView.userTrackingMode = trackingMode
         
-        // 1. Calculate the map points for the bounding box
-        let p1 = MKMapPoint(bounds[0]) // Top-Left
-        let p2 = MKMapPoint(bounds[1]) // Bottom-Right
-        
-        // 2. Create the MapRect that will contain the image
-        let mapRect = MKMapRect(
-            x: min(p1.x, p2.x),
-            y: min(p1.y, p2.y),
-            width: abs(p1.x - p2.x),
-            height: abs(p1.y - p2.y)
-        )
-        
-        // 3. Create and add the overlay
-        let overlay = IndoorMapOverlay(image: floorPlanImage, rect: mapRect)
+        // Initial Overlay
+        let overlay = IndoorMapOverlay(image: floorPlanImage, coordinate: overlayCenter, widthMeters: overlayWidthMeters, heightMeters: overlayHeightMeters, rotationDegrees: overlayRotationDegrees, alpha: overlayAlpha)
         mapView.addOverlay(overlay)
         
-        // 4. Set the initial camera to look at the floor plan
-        // Only set region if we aren't tracking the user
-        if trackingMode == .none {
-            let region = MKCoordinateRegion(mapRect)
-            mapView.setRegion(region, animated: false)
-        }
+        // Initial Camera Setup
+        let region = MKCoordinateRegion(center: overlayCenter, latitudinalMeters: max(overlayHeightMeters * 2, 200), longitudinalMeters: max(overlayWidthMeters * 2, 200))
+        mapView.setRegion(region, animated: false)
         
         return mapView
     }
@@ -56,10 +44,31 @@ struct IndoorMapView: UIViewRepresentable {
             uiView.setUserTrackingMode(trackingMode, animated: true)
         }
         
-        // Find existing polylines
-        let existingPolylines = uiView.overlays.compactMap { $0 as? MKPolyline }
+        // 1. Update the Floor Plan Overlay if properties changed
+        let existingOverlays = uiView.overlays.compactMap { $0 as? IndoorMapOverlay }
+        if let currentOverlay = existingOverlays.first {
+            // Check if any critical property changed that requires a re-draw
+            if currentOverlay.coordinate.latitude != overlayCenter.latitude ||
+               currentOverlay.coordinate.longitude != overlayCenter.longitude ||
+               currentOverlay.widthMeters != overlayWidthMeters ||
+               currentOverlay.heightMeters != overlayHeightMeters ||
+               currentOverlay.rotationDegrees != overlayRotationDegrees ||
+               currentOverlay.alpha != overlayAlpha ||
+               currentOverlay.image !== floorPlanImage {
+                
+                uiView.removeOverlay(currentOverlay)
+                
+                let newOverlay = IndoorMapOverlay(image: floorPlanImage, coordinate: overlayCenter, widthMeters: overlayWidthMeters, heightMeters: overlayHeightMeters, rotationDegrees: overlayRotationDegrees, alpha: overlayAlpha)
+                uiView.addOverlay(newOverlay)
+            }
+        } else {
+            // Re-add if it was missing entirely
+            let newOverlay = IndoorMapOverlay(image: floorPlanImage, coordinate: overlayCenter, widthMeters: overlayWidthMeters, heightMeters: overlayHeightMeters, rotationDegrees: overlayRotationDegrees, alpha: overlayAlpha)
+            uiView.addOverlay(newOverlay)
+        }
         
-        // If the route changed, update the overlay
+        // 2. Update Navigational Routes
+        let existingPolylines = uiView.overlays.compactMap { $0 as? MKPolyline }
         if let newRoute = route {
             if !existingPolylines.contains(where: { $0 === newRoute }) {
                 uiView.removeOverlays(existingPolylines)
@@ -88,13 +97,19 @@ struct IndoorMapView: UIViewRepresentable {
             }
         }
         
-        // Instructs MapKit on how to render our custom IndoorMapOverlay
+        // Track the exact center of the screen as the user pans, crucial for alignment
+        func mapViewDidChangeVisibleRegion(_ mapView: MKMapView) {
+            DispatchQueue.main.async {
+                self.parent.currentMapCenter = mapView.centerCoordinate
+            }
+        }
+        
+        // Instructs MapKit on how to render our overlays
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
             if let indoorOverlay = overlay as? IndoorMapOverlay {
                 return IndoorMapOverlayRenderer(overlay: indoorOverlay, overlayImage: indoorOverlay.image)
             }
             
-            // Standard fallback for other overlays like navigation routes (MKPolyline)
             if let polyline = overlay as? MKPolyline {
                 let renderer = MKPolylineRenderer(polyline: polyline)
                 renderer.strokeColor = .systemBlue
