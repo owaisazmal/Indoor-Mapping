@@ -33,8 +33,9 @@ struct ContentView: View {
     @State private var selectedDestination: String? = nil
     
     @StateObject private var locationManager = LocationManager()
-    @State private var trackingMode: MKUserTrackingMode = .none
+    @State private var trackingMode: MKUserTrackingMode = .follow
     @State private var showingMappingView = false
+    @State private var showBuildingBoundary = false
     
     var body: some View {
         ZStack(alignment: .top) {
@@ -48,6 +49,9 @@ struct ContentView: View {
                 overlayRotationDegrees: overlayRotationDegrees,
                 overlayAlpha: overlayAlpha,
                 route: activeRoute,
+                userLocation: locationManager.userLocation,
+                userHeading: locationManager.userHeading,
+                showBuildingBoundary: showBuildingBoundary,
                 trackingMode: $trackingMode,
                 currentMapCenter: $currentMapCenter
             )
@@ -194,6 +198,14 @@ struct ContentView: View {
                                 overlayAlpha = 1.0
                                 isEditingMap = false
                             }
+                            // Lock the dot to the placed floor plan footprint
+                            locationManager.buildingBounds = LocationManager.BuildingBounds(
+                                center:          overlayCenter,
+                                widthMeters:     overlayWidthMeters,
+                                heightMeters:    overlayHeightMeters,
+                                rotationDegrees: overlayRotationDegrees
+                            )
+                            showBuildingBoundary = true
                         }) {
                             Text("Save Alignment")
                                 .font(.headline)
@@ -235,6 +247,21 @@ struct ContentView: View {
                                     .background(.regularMaterial)
                                     .clipShape(Circle())
                                     .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
+                            }
+
+                            // Building Boundary Toggle (only shown after a floor plan is placed)
+                            if locationManager.buildingBounds != nil {
+                                Button(action: {
+                                    showBuildingBoundary.toggle()
+                                }) {
+                                    Image(systemName: showBuildingBoundary ? "building.2.fill" : "building.2")
+                                        .font(.system(size: 20))
+                                        .foregroundColor(showBuildingBoundary ? .white : .secondary)
+                                        .frame(width: 54, height: 54)
+                                        .background(showBuildingBoundary ? Color.indigo : Color(UIColor.systemBackground).opacity(0.9))
+                                        .clipShape(Circle())
+                                        .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
+                                }
                             }
 
                             // Scan Space Button

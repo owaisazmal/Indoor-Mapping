@@ -37,6 +37,17 @@ class IndoorMapper: NSObject, ObservableObject {
         session.delegate = self
     }
 
+    /// Starts the AR session so the camera preview shows immediately and the
+    /// system permission dialog fires on first launch. Call this from onAppear.
+    func startPreview() {
+        trackingState = "Initializing..."
+        let config = ARWorldTrackingConfiguration()
+        config.worldAlignment = .gravityAndHeading
+        config.planeDetection = [.horizontal, .vertical]
+        session.run(config, options: [.resetTracking, .removeExistingAnchors])
+    }
+
+    /// Begins recording feature points and path. Session must already be running.
     func startMapping() {
         featurePoints = []
         cameraPath = []
@@ -44,13 +55,6 @@ class IndoorMapper: NSObject, ObservableObject {
         hasData = false
         pointCount = 0
         scannedAreaM2 = 0
-        trackingState = "Initializing..."
-
-        let config = ARWorldTrackingConfiguration()
-        // gravityAndHeading aligns Z-axis to magnetic north for absolute orientation
-        config.worldAlignment = .gravityAndHeading
-        config.planeDetection = [.horizontal, .vertical]
-        session.run(config, options: [.resetTracking, .removeExistingAnchors])
 
         if hasBarometer {
             altimeter.startRelativeAltitudeUpdates(to: .main) { [weak self] data, _ in
@@ -64,9 +68,13 @@ class IndoorMapper: NSObject, ObservableObject {
     func stopMapping() {
         isMapping = false
         hasData = !featurePoints.isEmpty
-        session.pause()
         altimeter.stopRelativeAltitudeUpdates()
         computeStats()
+        // Session stays running so the user still sees the camera preview.
+    }
+
+    func pauseSession() {
+        session.pause()
     }
 
     private func computeStats() {
@@ -157,31 +165,29 @@ class IndoorMapper: NSObject, ObservableObject {
 }
 
 // MARK: - ARSessionDelegate
+// All callbacks are nonisolated because ARKit delivers them on a background thread.
+// The project uses SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor, so without nonisolated
+// these methods would be @MainActor-isolated, causing a thread-safety crash.
 
 extension IndoorMapper: ARSessionDelegate {
 
-    func session(_ session: ARSession, didUpdate frame: ARFrame) {
-        guard isMapping else { return }
-
+    nonisolated func session(_ session: ARSession, didUpdate frame: ARFrame) {
+        // Heavy computation stays on ARKit's background thread — no actor state touched here.
         let col3 = frame.camera.transform.columns.3
         let camPos = simd_float3(col3.x, col3.y, col3.z)
 
-        // Append path point every ~15 cm
-        var addPath = false
-        if let last = cameraPath.last {
-            addPath = simd_distance(camPos, last) > 0.15
-        } else {
-            addPath = true
-        }
-
-        // Filter feature points to a "wall band": up to 6 m away horizontally,
-        // between -1.8 m and +0.3 m relative to the camera (captures walls and obstacles).
-        let newWallPoints = frame.rawFeaturePoints?.points.filter { p in
+        // Wall-band filter: points within 6 m horizontally, between -1.8 m and +0.3 m
+        // relative to the camera — captures walls and obstacles while skipping floor/ceiling.
+        let wallPoints = frame.rawFeaturePoints?.points.filter { p in
             let dy = p.y - camPos.y
             let dx = p.x - camPos.x
             let dz = p.z - camPos.z
             return dy > -1.8 && dy < 0.3 && (dx*dx + dz*dz) < 36.0
         } ?? []
+
+        let sampled = wallPoints.enumerated()
+            .filter { $0.offset % 4 == 0 }
+            .map { $0.element }
 
         let stateStr: String
         switch frame.camera.trackingState {
@@ -198,14 +204,17 @@ extension IndoorMapper: ARSessionDelegate {
         @unknown default:               stateStr = "Tracking"
         }
 
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-            if addPath { self.cameraPath.append(camPos) }
-            if !newWallPoints.isEmpty {
-                // 1-in-4 subsample to limit memory use
-                let sampled = newWallPoints.enumerated()
-                    .filter { $0.offset % 4 == 0 }
-                    .map { $0.element }
+        // Hop to the main actor only for @Published property writes.
+        Task { @MainActor [weak self] in
+            guard let self, self.isMapping else { return }
+
+            if let last = self.cameraPath.last {
+                if simd_distance(camPos, last) > 0.15 { self.cameraPath.append(camPos) }
+            } else {
+                self.cameraPath.append(camPos)
+            }
+
+            if !sampled.isEmpty {
                 self.featurePoints.append(contentsOf: sampled)
                 if self.featurePoints.count > 40_000 {
                     self.featurePoints = Array(self.featurePoints.suffix(40_000))
@@ -216,16 +225,16 @@ extension IndoorMapper: ARSessionDelegate {
         }
     }
 
-    func session(_ session: ARSession, didFailWithError error: Error) {
-        DispatchQueue.main.async { self.trackingState = "Sensor error" }
+    nonisolated func session(_ session: ARSession, didFailWithError error: Error) {
+        Task { @MainActor [weak self] in self?.trackingState = "Sensor error" }
     }
 
-    func sessionWasInterrupted(_ session: ARSession) {
-        DispatchQueue.main.async { self.trackingState = "Interrupted" }
+    nonisolated func sessionWasInterrupted(_ session: ARSession) {
+        Task { @MainActor [weak self] in self?.trackingState = "Interrupted" }
     }
 
-    func sessionInterruptionEnded(_ session: ARSession) {
-        DispatchQueue.main.async { self.trackingState = "Resuming..." }
+    nonisolated func sessionInterruptionEnded(_ session: ARSession) {
+        Task { @MainActor [weak self] in self?.trackingState = "Resuming..." }
     }
 }
 
@@ -497,17 +506,25 @@ struct MappingView: View {
             }
         }
         .alert("Exit Mapping?", isPresented: $showExitAlert) {
-            Button("Discard & Exit", role: .destructive) { dismiss() }
+            Button("Discard & Exit", role: .destructive) { mapper.pauseSession(); dismiss() }
             if mapper.hasData {
-                Button("Save & Exit") { saveMap(); dismiss() }
+                Button("Save & Exit") { saveMap(); mapper.pauseSession(); dismiss() }
             }
             Button("Cancel", role: .cancel) {}
         } message: {
             Text(mapper.isMapping ? "Scanning is in progress." : "You have unsaved map data.")
         }
         .alert("Map Saved to Photos", isPresented: $showSavedAlert) {
-            Button("Done") { dismiss() }
+            Button("Done") { mapper.pauseSession(); dismiss() }
             Button("Keep Scanning", role: .cancel) {}
+        }
+        .onAppear {
+            // Start the AR session immediately so the camera feed shows and the
+            // system permission dialog fires on first launch.
+            mapper.startPreview()
+        }
+        .onDisappear {
+            mapper.pauseSession()
         }
     }
 

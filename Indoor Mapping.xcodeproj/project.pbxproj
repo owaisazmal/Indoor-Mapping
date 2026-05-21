@@ -400,7 +400,10 @@
 				DEVELOPMENT_TEAM = 8A3Z824TH3;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Camera is used by ARKit to scan and map your indoor space.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "We need your location to show where you are on the indoor map.";
+				INFOPLIST_KEY_NSMotionUsageDescription = "Motion sensors improve indoor positioning accuracy.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -433,7 +436,10 @@
 				DEVELOPMENT_TEAM = 8A3Z824TH3;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Camera is used by ARKit to scan and map your indoor space.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "We need your location to show where you are on the indoor map.";
+				INFOPLIST_KEY_NSMotionUsageDescription = "Motion sensors improve indoor positioning accuracy.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
