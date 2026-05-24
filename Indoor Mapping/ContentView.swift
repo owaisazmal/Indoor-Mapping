@@ -35,7 +35,9 @@ struct ContentView: View {
     @StateObject private var locationManager = LocationManager()
     @State private var trackingMode: MKUserTrackingMode = .follow
     @State private var showingMappingView = false
+    @State private var showingARNav = false
     @State private var showBuildingBoundary = false
+    @State private var mappingResult: MappingResult? = nil
     
     var body: some View {
         ZStack(alignment: .top) {
@@ -59,13 +61,15 @@ struct ContentView: View {
             
             // 2. CROSSHAIR (Only visible when editing)
             if isEditingMap {
-                Image(systemName: "plus.viewfinder")
-                    .font(.system(size: 44, weight: .ultraLight))
-                    .foregroundColor(.blue)
-                    .background(Circle().fill(Color.white.opacity(0.5)).frame(width: 30, height: 30))
-                    .position(x: UIScreen.main.bounds.width / 2, y: UIScreen.main.bounds.height / 2)
-                    .allowsHitTesting(false)
-                    .transition(.scale.combined(with: .opacity))
+                GeometryReader { geo in
+                    Image(systemName: "plus.viewfinder")
+                        .font(.system(size: 44, weight: .ultraLight))
+                        .foregroundColor(.blue)
+                        .background(Circle().fill(Color.white.opacity(0.5)).frame(width: 30, height: 30))
+                        .position(x: geo.size.width / 2, y: geo.size.height / 2)
+                        .allowsHitTesting(false)
+                }
+                .transition(.scale.combined(with: .opacity))
             }
             
             // 3. UI OVERLAYS
@@ -86,7 +90,7 @@ struct ContentView: View {
                         
                         // Upload Custom Map Button
                         PhotosPicker(selection: $selectedPhotoItem, matching: .images, photoLibrary: .shared()) {
-                            Image(systemName: "map.badge.plus")
+                            Image(systemName: "square.and.arrow.up")
                                 .font(.title3)
                                 .foregroundColor(.blue)
                                 .padding(8)
@@ -277,6 +281,19 @@ struct ContentView: View {
                                     .shadow(color: Color.indigo.opacity(0.35), radius: 8, x: 0, y: 4)
                             }
 
+                            // AR Navigate Button
+                            Button(action: {
+                                showingARNav = true
+                            }) {
+                                Image(systemName: "arkit")
+                                    .font(.system(size: 20))
+                                    .foregroundColor(.white)
+                                    .frame(width: 54, height: 54)
+                                    .background(Color.orange)
+                                    .clipShape(Circle())
+                                    .shadow(color: Color.orange.opacity(0.35), radius: 8, x: 0, y: 4)
+                            }
+
                             // Get Directions Button
                             Button(action: {
                                 showingDirectionsSheet = true
@@ -357,7 +374,21 @@ struct ContentView: View {
             .presentationDetents([.medium, .large])
         }
         .fullScreenCover(isPresented: $showingMappingView) {
-            MappingView()
+            MappingView(
+                floorPlanImage: floorPlanImage,
+                floorWidthMeters: overlayWidthMeters,
+                floorHeightMeters: overlayHeightMeters
+            ) { result in
+                mappingResult = result
+            }
+        }
+        .fullScreenCover(isPresented: $showingARNav) {
+            ARNavigationView(
+                floorPlanImage: floorPlanImage,
+                mappingResult: mappingResult,
+                floorWidthMeters: overlayWidthMeters,
+                floorHeightMeters: overlayHeightMeters
+            )
         }
         .onAppear {
             locationManager.requestPermission()
