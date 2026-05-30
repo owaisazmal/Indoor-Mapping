@@ -172,13 +172,10 @@ struct ContentView: View {
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: selectedDestination != nil)
         .onChange(of: selectedPhoto) { newItem in
             guard newItem != nil else { return }
-            floorPlan.isLoadingImage = true
             Task {
                 if let data = try? await newItem?.loadTransferable(type: Data.self),
                    let image = UIImage(data: data) {
                     floorPlan.load(image, anchoredAt: currentMapCenter)
-                } else {
-                    floorPlan.cancelLoading()
                 }
             }
         }

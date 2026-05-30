@@ -23,17 +23,17 @@ final class FloorPlanState: ObservableObject {
     // MARK: - Mutating actions
 
     func load(_ uiImage: UIImage, anchoredAt mapCenter: CLLocationCoordinate2D) {
-        image           = uiImage
-        heightMeters    = widthMeters * aspectRatio(of: uiImage)
-        center          = mapCenter
-        alpha           = 0.6
-        hasCustomImage  = true
-        isLoadingImage  = false
-        withAnimation(.spring()) { isEditing = true }
-    }
+        // Non-animated: set data before the transition starts
+        image        = uiImage
+        heightMeters = widthMeters * aspectRatio(of: uiImage)
+        center       = mapCenter
+        alpha        = 0.6
 
-    func cancelLoading() {
-        isLoadingImage = false
+        // One animation transaction so hasCustomImage and isEditing don't fight each other
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+            hasCustomImage = true
+            isEditing      = true
+        }
     }
 
     func snap(to mapCenter: CLLocationCoordinate2D) {
