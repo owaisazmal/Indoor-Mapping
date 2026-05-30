@@ -1,0 +1,152 @@
+{
+  "source": "/Users/owaiskhan/Downloads/Indoor Mapping/Indoor Mapping/ContentView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Pan the map, then tap Snap to align",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 115
+        }
+      },
+      {
+        "comment": "",
+        "key": "Adjusting Image",
+        "location": {
+          "startingColumn": 49,
+          "startingLine": 105
+        }
+      },
+      {
+        "comment": "",
+        "key": "Move Map",
+        "location": {
+          "startingColumn": 69,
+          "startingLine": 105
+        }
+      },
+      {
+        "comment": "",
+        "key": "Drag",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 109
+        }
+      },
+      {
+        "comment": "",
+        "key": "Pinch",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 110
+        }
+      },
+      {
+        "comment": "",
+        "key": "Rotate",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 111
+        }
+      },
+      {
+        "comment": "",
+        "key": "Search building...",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 239
+        }
+      },
+      {
+        "comment": "",
+        "key": "Loading floor plan…",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 284
+        }
+      },
+      {
+        "comment": "",
+        "key": "This will only take a moment",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 286
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add a floor plan",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 302
+        }
+      },
+      {
+        "comment": "",
+        "key": "Upload a building map to unlock scanning and AR navigation",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 304
+        }
+      },
+      {
+        "comment": "",
+        "key": "Choose from Photos",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 314
+        }
+      },
+      {
+        "comment": "",
+        "key": "Snap Image to Crosshair",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 353
+        }
+      },
+      {
+        "comment": "",
+        "key": "Save Alignment",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 361
+        }
+      },
+      {
+        "comment": "",
+        "key": "Navigating to",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 491
+        }
+      },
+      {
+        "comment": "",
+        "key": "2 mins",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 503
+        }
+      },
+      {
+        "comment": "",
+        "key": "• 150 ft",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 504
+        }
+      },
+      {
+        "comment": "",
+        "key": "Get Directions",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 532
+        }
+      }
+    ]
+  },
+  "version": 1
+}

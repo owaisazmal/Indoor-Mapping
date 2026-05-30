@@ -1,0 +1,136 @@
+{
+  "source": "/Users/owaiskhan/Downloads/Indoor Mapping/Indoor Mapping/MappingView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Name this Location",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 183
+        }
+      },
+      {
+        "comment": "",
+        "key": "e.g. Exit B, Lab 203, Cafeteria",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 161
+        }
+      },
+      {
+        "comment": "",
+        "key": "Icon",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 166
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 70,
+          "startingLine": 186
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 188
+        }
+      },
+      {
+        "comment": "",
+        "key": "Mark Locations",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 265
+        }
+      },
+      {
+        "comment": "",
+        "key": "on your floor plan",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 266
+        }
+      },
+      {
+        "comment": "",
+        "key": "Tap your floor plan to add a navigation point",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 278
+        }
+      },
+      {
+        "comment": "",
+        "key": "Tap to add more, or press Done below",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 279
+        }
+      },
+      {
+        "comment": "",
+        "key": "Your locations will appear here",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 315
+        }
+      },
+      {
+        "comment": "",
+        "key": "Optional: Walk & Scan with AR Camera",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 330
+        }
+      },
+      {
+        "comment": "",
+        "key": "Done — No Locations Added",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 343
+        }
+      },
+      {
+        "comment": "",
+        "key": "Use %lld Location%@ for AR Navigation",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 344
+        }
+      },
+      {
+        "comment": "",
+        "key": "Walk to build map",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 398
+        }
+      },
+      {
+        "comment": "",
+        "key": "Walk through every room so the camera can capture the space.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 420
+        }
+      },
+      {
+        "comment": "",
+        "key": "Finish Scanning — Back to Floor Plan",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 428
+        }
+      }
+    ]
+  },
+  "version": 1
+}

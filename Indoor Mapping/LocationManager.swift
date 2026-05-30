@@ -3,38 +3,34 @@ import CoreLocation
 import CoreMotion
 import Combine
 
+// MARK: - Location Manager
+// Single responsibility: deliver smoothed GPS position and heading updates.
+// Building-bounds clamping is kept here because it directly transforms the
+// coordinates before publishing — it is part of the "deliver position" contract.
+
 class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
 
-    private let manager        = CLLocationManager()
+    private let manager         = CLLocationManager()
     private let activityManager = CMMotionActivityManager()
 
     @Published var userLocation: CLLocation?
-    @Published var userHeading: CLLocationDirection = -1
+    @Published var userHeading:  CLLocationDirection = -1
     @Published var authorizationStatus: CLAuthorizationStatus
 
-    // Set after the user aligns the floor plan to clamp the dot inside the building.
-    struct BuildingBounds {
-        var center: CLLocationCoordinate2D
-        var widthMeters: Double
-        var heightMeters: Double
-        var rotationDegrees: Double
-    }
+    /// Set after the user saves alignment to clamp the dot inside the building.
     var buildingBounds: BuildingBounds?
 
-    // ── Smoothing state ───────────────────────────────────────────────────────
-    private var smoothedCoord: CLLocationCoordinate2D?
-    private var motionIsStationary = true   // from CMMotionActivityManager
+    private var smoothedCoord:    CLLocationCoordinate2D?
+    private var motionIsStationary = true
 
     override init() {
         self.authorizationStatus = manager.authorizationStatus
         super.init()
-        manager.delegate = self
+        manager.delegate        = self
         manager.desiredAccuracy = kCLLocationAccuracyBestForNavigation
         manager.distanceFilter  = kCLDistanceFilterNone
-        manager.headingFilter   = 2   // only fire on ≥ 2° changes
+        manager.headingFilter   = 2
 
-        // CMMotionActivityManager gives us reliable stationary detection using
-        // the accelerometer — far more accurate than GPS speed indoors.
         if CMMotionActivityManager.isActivityAvailable() {
             activityManager.startActivityUpdates(to: .main) { [weak self] activity in
                 guard let a = activity else { return }
@@ -71,25 +67,13 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let raw = locations.last,
               raw.horizontalAccuracy > 0,
-              raw.horizontalAccuracy < 20   // indoor GPS worse than 20 m is useless
+              raw.horizontalAccuracy < 20
         else { return }
 
-        // Use GPS speed as a second, faster movement signal (CMMotionActivity
-        // can lag 3-5 s after starting to walk).
-        let speedSaysMoving = raw.speed >= 0 && raw.speed > 0.4  // > 0.4 m/s ≈ slow walk
-
-        // Combine both signals — only unfreeze if at least one says we're moving
-        let moving = !motionIsStationary || speedSaysMoving
-
-        // Smoothing strength:
-        //   stationary → α = 0.05  (barely drifts; absorbs GPS bounce)
-        //   walking    → α = 0.30  (responsive but still smooth)
-        let alpha: Double    = moving ? 0.30 : 0.05
-
-        // Dead band: reject position changes smaller than this (metres).
-        // Stationary indoors: GPS can jump 10–30 m; 4 m dead band freezes the dot.
-        // Walking: 1.5 m lets normal step-by-step movement through.
-        let deadBand: Double = moving ? 1.5 : 4.0
+        let speedSaysMoving = raw.speed >= 0 && raw.speed > 0.4
+        let moving          = !motionIsStationary || speedSaysMoving
+        let alpha:   Double = moving ? 0.30 : 0.05
+        let deadBand:Double = moving ? 1.5  : 4.0
 
         let newCoord: CLLocationCoordinate2D
         if let prev = smoothedCoord {
@@ -101,7 +85,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                             .distance(from: CLLocation(latitude: prev.latitude, longitude: prev.longitude))
             newCoord = delta > deadBand ? candidate : prev
         } else {
-            newCoord = raw.coordinate  // first fix — accept immediately
+            newCoord = raw.coordinate
         }
         smoothedCoord = newCoord
 
@@ -133,7 +117,6 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         let east  = (coord.longitude - b.center.longitude) * mPerLon
         let north = (coord.latitude  - b.center.latitude)  * mPerLat
 
-        // Rotate to building-local frame (inverse of the visual clockwise rotation)
         let a = b.rotationDegrees * .pi / 180
         let ca = cos(a), sa = sin(a)
         let lx =  east * ca - north * sa

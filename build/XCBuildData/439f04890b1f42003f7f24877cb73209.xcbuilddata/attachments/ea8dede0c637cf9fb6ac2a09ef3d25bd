@@ -1,0 +1,149 @@
+{
+  "" : {
+    "diagnostics" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/Indoor Mapping-primary.dia",
+    "emit-module-dependencies" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/Indoor Mapping-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/Indoor Mapping-primary-emit-module.dia",
+    "pch" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/Indoor Mapping-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/Indoor Mapping-primary.swiftdeps"
+  },
+  "/Users/owaiskhan/Downloads/Indoor Mapping/Indoor Mapping/ARNavigationView.swift" : {
+    "const-values" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/ARNavigationView.swiftconstvalues",
+    "dependencies" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/ARNavigationView.d",
+    "diagnostics" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/ARNavigationView.dia",
+    "index-unit-output-path" : "/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/ARNavigationView.o",
+    "llvm-bc" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/ARNavigationView.bc",
+    "object" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/ARNavigationView.o",
+    "swift-dependencies" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/ARNavigationView.swiftdeps",
+    "swiftmodule" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/ARNavigationView~partial.swiftmodule"
+  },
+  "/Users/owaiskhan/Downloads/Indoor Mapping/Indoor Mapping/ContentView.swift" : {
+    "const-values" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/ContentView.swiftconstvalues",
+    "dependencies" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/ContentView.d",
+    "diagnostics" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/ContentView.dia",
+    "index-unit-output-path" : "/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/ContentView.o",
+    "llvm-bc" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/ContentView.bc",
+    "object" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/ContentView.o",
+    "swift-dependencies" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/ContentView.swiftdeps",
+    "swiftmodule" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/ContentView~partial.swiftmodule"
+  },
+  "/Users/owaiskhan/Downloads/Indoor Mapping/Indoor Mapping/FloorPlanState.swift" : {
+    "const-values" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/FloorPlanState.swiftconstvalues",
+    "dependencies" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/FloorPlanState.d",
+    "diagnostics" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/FloorPlanState.dia",
+    "index-unit-output-path" : "/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/FloorPlanState.o",
+    "llvm-bc" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/FloorPlanState.bc",
+    "object" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/FloorPlanState.o",
+    "swift-dependencies" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/FloorPlanState.swiftdeps",
+    "swiftmodule" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/FloorPlanState~partial.swiftmodule"
+  },
+  "/Users/owaiskhan/Downloads/Indoor Mapping/Indoor Mapping/IndoorMapOverlay.swift" : {
+    "const-values" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/IndoorMapOverlay.swiftconstvalues",
+    "dependencies" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/IndoorMapOverlay.d",
+    "diagnostics" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/IndoorMapOverlay.dia",
+    "index-unit-output-path" : "/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/IndoorMapOverlay.o",
+    "llvm-bc" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/IndoorMapOverlay.bc",
+    "object" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/IndoorMapOverlay.o",
+    "swift-dependencies" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/IndoorMapOverlay.swiftdeps",
+    "swiftmodule" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/IndoorMapOverlay~partial.swiftmodule"
+  },
+  "/Users/owaiskhan/Downloads/Indoor Mapping/Indoor Mapping/IndoorMapOverlayRenderer.swift" : {
+    "const-values" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/IndoorMapOverlayRenderer.swiftconstvalues",
+    "dependencies" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/IndoorMapOverlayRenderer.d",
+    "diagnostics" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/IndoorMapOverlayRenderer.dia",
+    "index-unit-output-path" : "/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/IndoorMapOverlayRenderer.o",
+    "llvm-bc" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/IndoorMapOverlayRenderer.bc",
+    "object" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/IndoorMapOverlayRenderer.o",
+    "swift-dependencies" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/IndoorMapOverlayRenderer.swiftdeps",
+    "swiftmodule" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/IndoorMapOverlayRenderer~partial.swiftmodule"
+  },
+  "/Users/owaiskhan/Downloads/Indoor Mapping/Indoor Mapping/IndoorMapView.swift" : {
+    "const-values" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/IndoorMapView.swiftconstvalues",
+    "dependencies" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/IndoorMapView.d",
+    "diagnostics" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/IndoorMapView.dia",
+    "index-unit-output-path" : "/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/IndoorMapView.o",
+    "llvm-bc" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/IndoorMapView.bc",
+    "object" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/IndoorMapView.o",
+    "swift-dependencies" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/IndoorMapView.swiftdeps",
+    "swiftmodule" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/IndoorMapView~partial.swiftmodule"
+  },
+  "/Users/owaiskhan/Downloads/Indoor Mapping/Indoor Mapping/Indoor_MappingApp.swift" : {
+    "const-values" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/Indoor_MappingApp.swiftconstvalues",
+    "dependencies" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/Indoor_MappingApp.d",
+    "diagnostics" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/Indoor_MappingApp.dia",
+    "index-unit-output-path" : "/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/Indoor_MappingApp.o",
+    "llvm-bc" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/Indoor_MappingApp.bc",
+    "object" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/Indoor_MappingApp.o",
+    "swift-dependencies" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/Indoor_MappingApp.swiftdeps",
+    "swiftmodule" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/Indoor_MappingApp~partial.swiftmodule"
+  },
+  "/Users/owaiskhan/Downloads/Indoor Mapping/Indoor Mapping/LocationManager.swift" : {
+    "const-values" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/LocationManager.swiftconstvalues",
+    "dependencies" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/LocationManager.d",
+    "diagnostics" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/LocationManager.dia",
+    "index-unit-output-path" : "/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/LocationManager.o",
+    "llvm-bc" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/LocationManager.bc",
+    "object" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/LocationManager.o",
+    "swift-dependencies" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/LocationManager.swiftdeps",
+    "swiftmodule" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/LocationManager~partial.swiftmodule"
+  },
+  "/Users/owaiskhan/Downloads/Indoor Mapping/Indoor Mapping/MappingView.swift" : {
+    "const-values" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/MappingView.swiftconstvalues",
+    "dependencies" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/MappingView.d",
+    "diagnostics" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/MappingView.dia",
+    "index-unit-output-path" : "/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/MappingView.o",
+    "llvm-bc" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/MappingView.bc",
+    "object" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/MappingView.o",
+    "swift-dependencies" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/MappingView.swiftdeps",
+    "swiftmodule" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/MappingView~partial.swiftmodule"
+  },
+  "/Users/owaiskhan/Downloads/Indoor Mapping/Indoor Mapping/Models.swift" : {
+    "const-values" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/Models.swiftconstvalues",
+    "dependencies" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/Models.d",
+    "diagnostics" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/Models.dia",
+    "index-unit-output-path" : "/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/Models.o",
+    "llvm-bc" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/Models.bc",
+    "object" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/Models.o",
+    "swift-dependencies" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/Models.swiftdeps",
+    "swiftmodule" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/Models~partial.swiftmodule"
+  },
+  "/Users/owaiskhan/Downloads/Indoor Mapping/Indoor Mapping/NavigationController.swift" : {
+    "const-values" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/NavigationController.swiftconstvalues",
+    "dependencies" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/NavigationController.d",
+    "diagnostics" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/NavigationController.dia",
+    "index-unit-output-path" : "/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/NavigationController.o",
+    "llvm-bc" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/NavigationController.bc",
+    "object" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/NavigationController.o",
+    "swift-dependencies" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/NavigationController.swiftdeps",
+    "swiftmodule" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/NavigationController~partial.swiftmodule"
+  },
+  "/Users/owaiskhan/Downloads/Indoor Mapping/Indoor Mapping/PathfindingService.swift" : {
+    "const-values" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/PathfindingService.swiftconstvalues",
+    "dependencies" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/PathfindingService.d",
+    "diagnostics" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/PathfindingService.dia",
+    "index-unit-output-path" : "/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/PathfindingService.o",
+    "llvm-bc" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/PathfindingService.bc",
+    "object" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/PathfindingService.o",
+    "swift-dependencies" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/PathfindingService.swiftdeps",
+    "swiftmodule" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/PathfindingService~partial.swiftmodule"
+  },
+  "/Users/owaiskhan/Downloads/Indoor Mapping/Indoor Mapping/SensorFusionEngine.swift" : {
+    "const-values" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/SensorFusionEngine.swiftconstvalues",
+    "dependencies" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/SensorFusionEngine.d",
+    "diagnostics" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/SensorFusionEngine.dia",
+    "index-unit-output-path" : "/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/SensorFusionEngine.o",
+    "llvm-bc" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/SensorFusionEngine.bc",
+    "object" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/SensorFusionEngine.o",
+    "swift-dependencies" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/SensorFusionEngine.swiftdeps",
+    "swiftmodule" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/SensorFusionEngine~partial.swiftmodule"
+  },
+  "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/DerivedSources/GeneratedAssetSymbols.swift" : {
+    "const-values" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/GeneratedAssetSymbols.swiftconstvalues",
+    "dependencies" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/GeneratedAssetSymbols.d",
+    "diagnostics" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/GeneratedAssetSymbols.dia",
+    "index-unit-output-path" : "/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/GeneratedAssetSymbols.o",
+    "llvm-bc" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/GeneratedAssetSymbols.bc",
+    "object" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/GeneratedAssetSymbols.o",
+    "swift-dependencies" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/GeneratedAssetSymbols.swiftdeps",
+    "swiftmodule" : "/Users/owaiskhan/Downloads/Indoor Mapping/build/Indoor Mapping.build/Debug-iphonesimulator/Indoor Mapping.build/Objects-normal/arm64/GeneratedAssetSymbols~partial.swiftmodule"
+  }
+}

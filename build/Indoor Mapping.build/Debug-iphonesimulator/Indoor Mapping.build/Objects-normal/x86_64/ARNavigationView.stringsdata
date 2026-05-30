@@ -1,0 +1,64 @@
+{
+  "source": "/Users/owaiskhan/Downloads/Indoor Mapping/Indoor Mapping/ARNavigationView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Where to?",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 109
+        }
+      },
+      {
+        "comment": "",
+        "key": "Tap to start AR navigation",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 100
+        }
+      },
+      {
+        "comment": "",
+        "key": "Where to?",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 183
+        }
+      },
+      {
+        "comment": "",
+        "key": "AR Navigation",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 219
+        }
+      },
+      {
+        "comment": "",
+        "key": "No locations mapped yet",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 236
+        }
+      },
+      {
+        "comment": "",
+        "key": "Scan your building first, then tap \"Mark Locations on Floor Plan\" to add points of interest. They'll appear here for AR navigation.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 237
+        }
+      },
+      {
+        "comment": "",
+        "key": "Go back and scan",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 241
+        }
+      }
+    ]
+  },
+  "version": 1
+}

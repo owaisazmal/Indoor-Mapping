@@ -93,8 +93,11 @@ struct IndoorMapView: UIViewRepresentable {
     var userHeading:          CLLocationDirection
     var showBuildingBoundary: Bool
 
-    @Binding var trackingMode:    MKUserTrackingMode
-    @Binding var currentMapCenter: CLLocationCoordinate2D
+    var isEditing: Bool
+
+    @Binding var trackingMode:      MKUserTrackingMode
+    @Binding var currentMapCenter:  CLLocationCoordinate2D
+    @Binding var currentMapSpan:    MKCoordinateSpan
 
     // MARK: UIViewRepresentable
 
@@ -114,6 +117,12 @@ struct IndoorMapView: UIViewRepresentable {
 
     func updateUIView(_ uiView: MKMapView, context: Context) {
         let coord = context.coordinator
+
+        // Disable map interaction during alignment so finger gestures reach SwiftUI
+        uiView.isScrollEnabled  = !isEditing
+        uiView.isZoomEnabled    = !isEditing
+        uiView.isRotateEnabled  = !isEditing
+        uiView.isPitchEnabled   = !isEditing
 
         // ── User location annotation ──────────────────────────────────────────
         if let loc = userLocation {
@@ -288,17 +297,21 @@ struct IndoorMapView: UIViewRepresentable {
 
         init(_ parent: IndoorMapView) { self.parent = parent }
 
-        // Stop tracking when the user drags the map manually.
-        // animated=false → user gesture; animated=true → our programmatic move.
         func mapView(_ mapView: MKMapView, regionWillChangeAnimated animated: Bool) {
-            DispatchQueue.main.async { self.parent.currentMapCenter = mapView.centerCoordinate }
+            DispatchQueue.main.async {
+                self.parent.currentMapCenter = mapView.centerCoordinate
+                self.parent.currentMapSpan   = mapView.region.span
+            }
             if !animated, parent.trackingMode != .none {
                 DispatchQueue.main.async { self.parent.trackingMode = .none }
             }
         }
 
         func mapViewDidChangeVisibleRegion(_ mapView: MKMapView) {
-            DispatchQueue.main.async { self.parent.currentMapCenter = mapView.centerCoordinate }
+            DispatchQueue.main.async {
+                self.parent.currentMapCenter = mapView.centerCoordinate
+                self.parent.currentMapSpan   = mapView.region.span
+            }
         }
 
         func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
