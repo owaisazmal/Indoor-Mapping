@@ -7,21 +7,34 @@ import Foundation
 /// Positions are stored in UV space (0–1 on each axis, origin at top-left of
 /// the floor-plan image) so they map directly onto `userUV` and POI `mapUV`.
 struct NavNode: Identifiable, Hashable {
-    /// Stable unique key — e.g. "ROOM_101", "ELEVATOR_A", "JUNCTION_3".
-    let id: String
-    /// Human-readable display name shown in the navigation UI.
+    let id:   String
     let name: String
-    /// Position on the floor-plan image, normalised 0–1.
-    let uv: CGPoint
+    let uv:   CGPoint
+    var icon: String = "mappin.fill"
 
-    // Hashable / Equatable on id alone so the node can be used as a dict key.
     func hash(into hasher: inout Hasher) { hasher.combine(id) }
     static func == (lhs: NavNode, rhs: NavNode) -> Bool { lhs.id == rhs.id }
 
-    /// Convenience factory that lifts a scanned `NavDestination` (AR layer) into
-    /// a graph node so POIs can participate in pathfinding without extra mapping.
+    /// Stable color index derived from the node id — no need to store it on disk.
+    var colorIndex: Int { abs(id.hashValue) % poiUIColors.count }
+
     static func from(_ dest: NavDestination) -> NavNode {
-        NavNode(id: "POI_\(dest.id)", name: dest.name, uv: dest.mapUV)
+        NavNode(id: "POI_\(dest.id)", name: dest.name, uv: dest.mapUV, icon: dest.icon)
+    }
+
+    /// Build a NavDestination for AR navigation from this node's UV position.
+    func toNavDestination(id destID: Int,
+                          widthMeters: Double,
+                          heightMeters: Double) -> NavDestination {
+        NavDestination(
+            id:      destID,
+            name:    name,
+            icon:    icon,
+            mapUV:   uv,
+            worldX:  Float((uv.x - 0.5) * widthMeters),
+            worldZ:  Float((uv.y - 0.5) * heightMeters),
+            uiColor: poiUIColors[colorIndex]
+        )
     }
 }
 
@@ -50,6 +63,9 @@ final class NavGraph {
 
     private(set) var nodes:     [String: NavNode]   = [:]
     private(set) var adjacency: [String: [NavEdge]] = [:]
+    /// Walkable zones drawn in GraphBuilderView. UV coords, origin top-left.
+    /// Empty means unconstrained (fallback: clamp to [0,1] image bounds).
+    var walkableRects: [CGRect] = []
 
     // MARK: Mutations
 

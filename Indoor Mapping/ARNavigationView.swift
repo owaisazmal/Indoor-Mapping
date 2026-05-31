@@ -1,6 +1,7 @@
 import SwiftUI
 import ARKit
 import SceneKit
+// MapKit removed: CalibrationMapView replaced by FloorPlanPinView (UIScrollView)
 
 // MARK: - AR Scene View wrapper
 
@@ -112,235 +113,126 @@ struct DestinationPicker: View {
     }
 }
 
-// MARK: - Calibration pin annotation view
-// A glowing blue ring with a solid dot — used by CalibrationMapView to mark
-// the user's tapped starting position on the floor plan.
+// MARK: - FloorPlanPinView
+// UIScrollView-based floor plan viewer.  Replaces the previous MKMapView
+// approach.  Advantages:
+//   • No geographic constraints or camera-snap behaviour.
+//   • Initialises to aspect-fit zoom so the entire floor plan is always visible.
+//   • User can pinch/pan freely; tap drops a glowing UV pin.
+//   • CalibrationScrollView subclass uses layoutSubviews for guaranteed fit
+//     setup — reliable even when bounds are zero on first updateUIView call.
 
-private class CalibrationPinView: MKAnnotationView {
+// CalibrationScrollView → replaced by FloorPlanScrollBase (FloorPlanScrollView.swift)
+private typealias CalibrationScrollView = FloorPlanScrollBase
 
-    private let outerRing = CAShapeLayer()
-    private let innerDot  = CAShapeLayer()
+private struct FloorPlanPinView: UIViewRepresentable {
+    let image:          UIImage
+    @Binding var pendingUV: CGPoint?
 
-    override init(annotation: MKAnnotation?, reuseIdentifier: String?) {
-        super.init(annotation: annotation, reuseIdentifier: reuseIdentifier)
-        let size: CGFloat = 60
-        bounds          = CGRect(x: 0, y: 0, width: size, height: size)
-        centerOffset    = .zero
-        backgroundColor = .clear
-        let c = CGPoint(x: size / 2, y: size / 2)
+    func makeUIView(context: Context) -> CalibrationScrollView {
+        let sv              = CalibrationScrollView()
+        sv.delegate         = context.coordinator
+        sv.floorPlanImage   = image
+        sv.showsHorizontalScrollIndicator = false
+        sv.showsVerticalScrollIndicator   = false
+        sv.bouncesZoom      = true
+        sv.backgroundColor  = .systemBackground
 
-        // Outer pulsing ring
-        let outerPath = UIBezierPath(arcCenter: c, radius: 23,
-                                     startAngle: 0, endAngle: .pi * 2, clockwise: true)
-        outerRing.path        = outerPath.cgPath
-        outerRing.fillColor   = UIColor.systemBlue.withAlphaComponent(0.18).cgColor
-        outerRing.strokeColor = UIColor.systemBlue.withAlphaComponent(0.60).cgColor
-        outerRing.lineWidth   = 2
-        layer.addSublayer(outerRing)
-
-        let pulse          = CABasicAnimation(keyPath: "opacity")
-        pulse.fromValue    = 0.35
-        pulse.toValue      = 1.0
-        pulse.duration     = 1.0
-        pulse.autoreverses = true
-        pulse.repeatCount  = .infinity
-        outerRing.add(pulse, forKey: "pulse")
-
-        // Solid centre dot with white halo
-        let haloPath = UIBezierPath(arcCenter: c, radius: 12,
-                                    startAngle: 0, endAngle: .pi * 2, clockwise: true)
-        let halo = CAShapeLayer()
-        halo.path      = haloPath.cgPath
-        halo.fillColor = UIColor.white.cgColor
-        halo.shadowColor   = UIColor.black.cgColor
-        halo.shadowOpacity = 0.22
-        halo.shadowRadius  = 4
-        halo.shadowOffset  = CGSize(width: 0, height: 2)
-        layer.addSublayer(halo)
-
-        let dotPath = UIBezierPath(arcCenter: c, radius: 9,
-                                   startAngle: 0, endAngle: .pi * 2, clockwise: true)
-        innerDot.path        = dotPath.cgPath
-        innerDot.fillColor   = UIColor(red: 0.26, green: 0.58, blue: 0.97, alpha: 1).cgColor
-        innerDot.strokeColor = UIColor.white.cgColor
-        innerDot.lineWidth   = 2
-        layer.addSublayer(innerDot)
-    }
-
-    required init?(coder: NSCoder) { fatalError() }
-}
-
-// MARK: - CalibrationMapView
-// Lightweight UIViewRepresentable used inside OriginCalibrationView.
-//   • Renders the floor plan overlay on a standard MKMapView.
-//   • Auto-fits the camera to the floor plan bounding box (+ 15 % padding)
-//     exactly once when the view first appears.
-//   • Converts single taps to UV coordinates and writes them back via
-//     the `pendingUV` binding.
-//   • All GPS / tracking modes are disabled — the camera never snaps away.
-
-private struct CalibrationMapView: UIViewRepresentable {
-
-    let floorPlanImage:         UIImage
-    let overlayCenter:          CLLocationCoordinate2D
-    let overlayWidthMeters:     Double
-    let overlayHeightMeters:    Double
-    let overlayRotationDegrees: Double
-    @Binding var pendingUV:     CGPoint?
-
-    // MARK: UIViewRepresentable
-
-    func makeUIView(context: Context) -> MKMapView {
-        let mv = MKMapView()
-        mv.delegate           = context.coordinator
-        mv.mapType            = .standard
-        mv.showsUserLocation  = false   // GPS dot deliberately hidden
-        mv.isRotateEnabled    = false   // keep map north-up for clarity
-        mv.isPitchEnabled     = false
-        mv.showsCompass       = false
-        mv.showsScale         = true
-
-        let overlay = IndoorMapOverlay(image:           floorPlanImage,
-                                       coordinate:      overlayCenter,
-                                       widthMeters:     overlayWidthMeters,
-                                       heightMeters:    overlayHeightMeters,
-                                       rotationDegrees: overlayRotationDegrees,
-                                       alpha:           0.92)
-        mv.addOverlay(overlay)
+        let iv = UIImageView(image: image)
+        iv.contentMode = .scaleToFill   // frame is set explicitly; contentMode irrelevant
+        sv.addSubview(iv)
+        sv.imageView = iv
+        context.coordinator.imageView = iv
 
         let tap = UITapGestureRecognizer(target: context.coordinator,
                                           action: #selector(Coordinator.handleTap(_:)))
-        mv.addGestureRecognizer(tap)
-        return mv
+        sv.addGestureRecognizer(tap)
+        return sv
     }
 
-    func updateUIView(_ mv: MKMapView, context: Context) {
-        let coord = context.coordinator
-        coord.parent = self
-        // Fit to floor plan bounding box exactly once — never again so that
-        // subsequent SwiftUI re-renders (e.g. pendingUV changes) don't reset
-        // the camera while the user is panning or zooming.
-        if !coord.hasFitted {
-            coord.hasFitted = true
-            mv.setVisibleMapRect(floorPlanMapRect(),
-                                  edgePadding: UIEdgeInsets(top: 60, left: 40,
-                                                            bottom: 120, right: 40),
-                                  animated: false)
-        }
+    func updateUIView(_ sv: CalibrationScrollView, context: Context) {
+        // Keep binding reference current; all camera/zoom logic lives in
+        // CalibrationScrollView.layoutSubviews so SwiftUI re-renders are harmless.
+        context.coordinator.parent = self
     }
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
-    // MARK: Fit rect
-
-    /// Builds an MKMapRect that encloses the rotated floor plan + 15 % padding.
-    func floorPlanMapRect() -> MKMapRect {
-        let mPerLat = 111_000.0
-        let mPerLon = 111_000.0 * cos(overlayCenter.latitude * .pi / 180)
-        let hw = overlayWidthMeters  / 2
-        let hh = overlayHeightMeters / 2
-        let a  = overlayRotationDegrees * .pi / 180.0
-        let ca = cos(a), sa = sin(a)
-
-        // Four corners using the same rotation as buildingPolygon / IndoorMapOverlayRenderer
-        let corners: [(Double, Double)] = [(-hw,-hh), (hw,-hh), (hw,hh), (-hw,hh)]
-        let pts = corners.map { (lx, ly) -> MKMapPoint in
-            let east  =  lx * ca + ly * sa
-            let north = -lx * sa + ly * ca
-            return MKMapPoint(CLLocationCoordinate2D(
-                latitude:  overlayCenter.latitude  + north / mPerLat,
-                longitude: overlayCenter.longitude + east  / mPerLon))
-        }
-
-        let minX = pts.map(\.x).min()!, maxX = pts.map(\.x).max()!
-        let minY = pts.map(\.y).min()!, maxY = pts.map(\.y).max()!
-        let w = maxX - minX, h = maxY - minY
-        let p = 0.15
-        return MKMapRect(x: minX - w * p, y: minY - h * p,
-                          width: w * (1 + 2 * p), height: h * (1 + 2 * p))
-    }
-
     // MARK: Coordinator
 
-    class Coordinator: NSObject, MKMapViewDelegate {
-        var parent:      CalibrationMapView
-        var hasFitted    = false
-        var pinAnnotation: CalibrationPinAnnotation?
+    final class Coordinator: NSObject, UIScrollViewDelegate {
+        var parent:     FloorPlanPinView
+        weak var imageView: UIImageView?
+        var pinLayer:   CALayer?
 
-        init(_ p: CalibrationMapView) { parent = p }
+        init(_ p: FloorPlanPinView) { parent = p }
+
+        func viewForZooming(in scrollView: UIScrollView) -> UIView? { imageView }
+
+        func scrollViewDidZoom(_ scrollView: UIScrollView) {
+            (scrollView as? CalibrationScrollView)?.centerContent()
+        }
 
         @objc func handleTap(_ gr: UITapGestureRecognizer) {
-            guard gr.state == .ended, let mv = gr.view as? MKMapView else { return }
-            let geo = mv.convert(gr.location(in: mv), toCoordinateFrom: mv)
-            let uv  = geoToUV(geo)
+            guard let iv = imageView else { return }
+            let pt = gr.location(in: iv)
+            let uv = CGPoint(
+                x: max(0, min(1, pt.x / iv.bounds.width)),
+                y: max(0, min(1, pt.y / iv.bounds.height))
+            )
             parent.pendingUV = uv
             UISelectionFeedbackGenerator().selectionChanged()
-
-            let pinCoord = uvToGeo(uv)
-            if let pin = pinAnnotation {
-                pin.coordinate = pinCoord
-            } else {
-                let pin = CalibrationPinAnnotation(pinCoord)
-                pinAnnotation = pin
-                mv.addAnnotation(pin)
-            }
+            placePin(at: uv, on: iv)
         }
 
-        // Inverse-rotation formula — identical to geoToUV in IndoorMapView.Coordinator.
-        func geoToUV(_ coord: CLLocationCoordinate2D) -> CGPoint {
-            let c = parent.overlayCenter
-            let mPerLat = 111_000.0
-            let mPerLon = 111_000.0 * cos(c.latitude * .pi / 180)
-            let northM  = (coord.latitude  - c.latitude)  * mPerLat
-            let eastM   = (coord.longitude - c.longitude) * mPerLon
-            let a  = parent.overlayRotationDegrees * .pi / 180.0
-            let ca = cos(a), sa = sin(a)
-            return CGPoint(x: 0.5 + (eastM * ca - northM * sa) / parent.overlayWidthMeters,
-                           y: 0.5 - (eastM * sa + northM * ca) / parent.overlayHeightMeters)
-        }
+        private func placePin(at uv: CGPoint, on iv: UIImageView) {
+            pinLayer?.removeFromSuperlayer()
+            let cx = uv.x * iv.bounds.width
+            let cy = uv.y * iv.bounds.height
+            let sz: CGFloat = 60
+            let c = CGPoint(x: sz / 2, y: sz / 2)
 
-        func uvToGeo(_ uv: CGPoint) -> CLLocationCoordinate2D {
-            let c = parent.overlayCenter
-            let mPerLat = 111_000.0
-            let mPerLon = 111_000.0 * cos(c.latitude * .pi / 180)
-            let lx  = (uv.x - 0.5) * parent.overlayWidthMeters
-            let ly  = (0.5 - uv.y) * parent.overlayHeightMeters
-            let a   = parent.overlayRotationDegrees * .pi / 180.0
-            let ca  = cos(a), sa = sin(a)
-            return CLLocationCoordinate2D(
-                latitude:  c.latitude  + (-lx * sa + ly * ca) / mPerLat,
-                longitude: c.longitude + ( lx * ca + ly * sa) / mPerLon)
-        }
+            let container   = CALayer()
+            container.frame = CGRect(x: cx - sz/2, y: cy - sz/2, width: sz, height: sz)
+            container.zPosition = 100
 
-        func mapView(_ mv: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
-            guard let floor = overlay as? IndoorMapOverlay else {
-                return MKOverlayRenderer(overlay: overlay)
-            }
-            return IndoorMapOverlayRenderer(overlay: floor, overlayImage: floor.image)
-        }
+            let ring          = CAShapeLayer()
+            ring.path         = UIBezierPath(arcCenter: c, radius: 23,
+                                              startAngle: 0, endAngle: .pi*2, clockwise: true).cgPath
+            ring.fillColor    = UIColor.systemBlue.withAlphaComponent(0.18).cgColor
+            ring.strokeColor  = UIColor.systemBlue.withAlphaComponent(0.60).cgColor
+            ring.lineWidth    = 2
+            let pulse         = CABasicAnimation(keyPath: "opacity")
+            pulse.fromValue   = 0.35; pulse.toValue = 1.0
+            pulse.duration    = 1.0;  pulse.autoreverses = true; pulse.repeatCount = .infinity
+            ring.add(pulse, forKey: "pulse")
+            container.addSublayer(ring)
 
-        func mapView(_ mv: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
-            guard annotation is CalibrationPinAnnotation else { return nil }
-            let id = "CalibPin"
-            let v  = (mv.dequeueReusableAnnotationView(withIdentifier: id) as? CalibrationPinView)
-                ?? CalibrationPinView(annotation: annotation, reuseIdentifier: id)
-            v.annotation        = annotation
-            v.animatesWhenAdded = true
-            return v
+            let halo          = CAShapeLayer()
+            halo.path         = UIBezierPath(arcCenter: c, radius: 12,
+                                              startAngle: 0, endAngle: .pi*2, clockwise: true).cgPath
+            halo.fillColor    = UIColor.white.cgColor
+            halo.shadowColor  = UIColor.black.cgColor
+            halo.shadowOpacity = 0.22; halo.shadowRadius = 4
+            halo.shadowOffset = CGSize(width: 0, height: 2)
+            container.addSublayer(halo)
+
+            let dot           = CAShapeLayer()
+            dot.path          = UIBezierPath(arcCenter: c, radius: 9,
+                                              startAngle: 0, endAngle: .pi*2, clockwise: true).cgPath
+            dot.fillColor     = UIColor(red: 0.26, green: 0.58, blue: 0.97, alpha: 1).cgColor
+            dot.strokeColor   = UIColor.white.cgColor; dot.lineWidth = 2
+            container.addSublayer(dot)
+
+            iv.layer.addSublayer(container)
+            pinLayer = container
         }
     }
-}
-
-/// Lightweight annotation class so `CalibrationMapView` can distinguish its own
-/// pin from any other annotations that might be added in the future.
-private class CalibrationPinAnnotation: NSObject, MKAnnotation {
-    @objc dynamic var coordinate: CLLocationCoordinate2D
-    init(_ coord: CLLocationCoordinate2D) { coordinate = coord }
 }
 
 // MARK: - Origin Calibration View
-// Shown before the AR session starts. The user taps their current physical
-// position on the floor plan overlaid on a real map; that UV becomes originUV.
+// Shown before the AR session starts.  FloorPlanPinView (UIScrollView) replaces
+// the previous MKMapView approach — no geographic dependencies, instant fit.
 
 private struct OriginCalibrationView: View {
     let floorPlanImage: UIImage
@@ -351,45 +243,9 @@ private struct OriginCalibrationView: View {
 
     var body: some View {
         ZStack(alignment: .top) {
+            FloorPlanPinView(image: floorPlanImage, pendingUV: $pendingUV)
+                .edgesIgnoringSafeArea(.all)
 
-            // ── Floor plan + tap capture ──────────────────────────────────────
-            GeometryReader { geo in
-                let w = geo.size.width, h = geo.size.height
-                ZStack {
-                    Image(uiImage: floorPlanImage)
-                        .resizable().scaledToFill()
-                        .frame(width: w, height: h)
-                        .clipped()
-
-                    if let uv = pendingUV {
-                        ZStack {
-                            Circle()
-                                .fill(Color.blue.opacity(0.22))
-                                .frame(width: 46, height: 46)
-                            Circle()
-                                .fill(Color.blue)
-                                .frame(width: 16, height: 16)
-                                .overlay(Circle().stroke(Color.white, lineWidth: 2.5))
-                                .shadow(color: .black.opacity(0.3), radius: 3, y: 2)
-                        }
-                        .position(x: uv.x * w, y: uv.y * h)
-                        .allowsHitTesting(false)
-                    }
-
-                    Color.clear
-                        .contentShape(Rectangle())
-                        .gesture(
-                            DragGesture(minimumDistance: 0)
-                                .onEnded { v in
-                                    pendingUV = CGPoint(x: v.location.x / w,
-                                                        y: v.location.y / h)
-                                }
-                        )
-                }
-            }
-            .edgesIgnoringSafeArea(.all)
-
-            // ── Overlaid UI chrome ────────────────────────────────────────────
             VStack(spacing: 0) {
                 HStack {
                     Button(action: onDismiss) {
@@ -397,8 +253,7 @@ private struct OriginCalibrationView: View {
                             .font(.system(size: 15, weight: .semibold))
                             .foregroundColor(.primary)
                             .frame(width: 38, height: 38)
-                            .background(.regularMaterial)
-                            .clipShape(Circle())
+                            .background(.regularMaterial).clipShape(Circle())
                             .shadow(color: .black.opacity(0.12), radius: 4)
                     }
                     Spacer()
@@ -412,23 +267,24 @@ private struct OriginCalibrationView: View {
                 }
                 .padding(.horizontal, 16).padding(.top, 8)
 
-                HStack(spacing: 7) {
-                    Image(systemName: pendingUV == nil
-                          ? "hand.tap.fill" : "checkmark.circle.fill")
+                HStack(spacing: 8) {
+                    Image(systemName: pendingUV == nil ? "hand.tap.fill" : "checkmark.circle.fill")
+                        .font(.caption)
                     Text(pendingUV == nil
-                         ? "Tap your current position on the map"
-                         : "Tap elsewhere to adjust")
+                         ? "Tap your current position on the floor plan"
+                         : "Tap to adjust  ·  Pinch to zoom  ·  Drag to pan")
+                        .font(.caption.bold())
                 }
-                .font(.caption.bold())
                 .foregroundColor(.white)
                 .padding(.horizontal, 16).padding(.vertical, 9)
                 .background(Color.black.opacity(0.62)).clipShape(Capsule())
                 .padding(.top, 12)
+                .animation(.easeInOut(duration: 0.2), value: pendingUV != nil)
 
                 Spacer()
 
-                if let uv = pendingUV {
-                    Button { onConfirm(uv) } label: {
+                if pendingUV != nil {
+                    Button { onConfirm(pendingUV!) } label: {
                         Label("Confirm & Start Navigation",
                               systemImage: "arrow.right.circle.fill")
                             .font(.headline).foregroundColor(.white)
@@ -541,9 +397,7 @@ private struct ARNavActiveView: View {
     let destinations:          [NavDestination]
     let floorWidthMeters:      Double
     let floorHeightMeters:     Double
-    /// Called when the user taps "Re-calibrate" in the tracking-lost overlay.
-    /// The parent responds by resetting `confirmedOriginUV` to nil, which destroys
-    /// this view (and its ARNavStore) and re-presents OriginCalibrationView.
+    let navGraph:              NavGraph?
     let onRecalibrationNeeded: () -> Void
 
     @StateObject private var store: ARNavStore
@@ -556,14 +410,14 @@ private struct ARNavActiveView: View {
          floorHeightMeters:     Double,
          originUV:              CGPoint,
          headingOffsetDegrees:  Double,
+         navGraph:              NavGraph?,
          onRecalibrationNeeded: @escaping () -> Void) {
         self.floorPlanImage        = floorPlanImage
         self.destinations          = destinations
         self.floorWidthMeters      = floorWidthMeters
         self.floorHeightMeters     = floorHeightMeters
+        self.navGraph              = navGraph
         self.onRecalibrationNeeded = onRecalibrationNeeded
-        // StateObject(wrappedValue:) is the correct SwiftUI pattern for passing
-        // runtime values into a @StateObject initialiser.
         _store = StateObject(wrappedValue: ARNavStore(originUV: originUV,
                                                       headingOffsetDegrees: headingOffsetDegrees))
     }
@@ -631,6 +485,7 @@ private struct ARNavActiveView: View {
             .onAppear {
                 store.floorWidthMeters  = floorWidthMeters
                 store.floorHeightMeters = floorHeightMeters
+                store.walkableRects     = navGraph?.walkableRects ?? []
                 store.start()
             }
             .onDisappear { store.stop() }
@@ -685,26 +540,30 @@ private struct ARNavActiveView: View {
 
 struct ARNavigationView: View {
     let floorPlanImage:       UIImage
-    let mappingResult:        MappingResult?
-    var floorWidthMeters:     Double = 30
-    var floorHeightMeters:    Double = 20
-    /// Compass heading of the device at calibration time minus the floor plan's
-    /// visual rotation angle (floorPlan.rotationDegrees).  Pass 0 if the top of
-    /// the floor plan image faces magnetic north.
-    var headingOffsetDegrees: Double = 0
+    var floorWidthMeters:     Double   = 30
+    var floorHeightMeters:    Double   = 20
+    var headingOffsetDegrees: Double   = 0
+    var navGraph:             NavGraph? = nil
 
     @Environment(\.dismiss) private var dismiss
     @State private var confirmedOriginUV: CGPoint?
 
+    /// Destinations are derived from persisted NavGraph nodes at session start.
     private var destinations: [NavDestination] {
-        (mappingResult?.pois ?? []).enumerated().map { i, poi in poi.toNavDestination(id: i) }
+        guard let graph = navGraph else { return [] }
+        return graph.nodes.values
+            .sorted { $0.id < $1.id }
+            .enumerated()
+            .map { i, node in
+                node.toNavDestination(id: i,
+                                      widthMeters:  floorWidthMeters,
+                                      heightMeters: floorHeightMeters)
+            }
     }
 
     var body: some View {
         Group {
-            if destinations.isEmpty {
-                emptyStateView
-            } else if let originUV = confirmedOriginUV {
+            if let originUV = confirmedOriginUV {
                 ARNavActiveView(
                     floorPlanImage:        floorPlanImage,
                     destinations:          destinations,
@@ -712,55 +571,16 @@ struct ARNavigationView: View {
                     floorHeightMeters:     floorHeightMeters,
                     originUV:              originUV,
                     headingOffsetDegrees:  headingOffsetDegrees,
+                    navGraph:              navGraph,
                     onRecalibrationNeeded: { confirmedOriginUV = nil }
                 )
             } else {
                 OriginCalibrationView(
                     floorPlanImage: floorPlanImage,
-                    onConfirm: { confirmedOriginUV = $0 },
-                    onDismiss: { dismiss() }
+                    onConfirm:      { confirmedOriginUV = $0 },
+                    onDismiss:      { dismiss() }
                 )
             }
-        }
-    }
-
-    private var emptyStateView: some View {
-        ZStack(alignment: .top) {
-            VStack(spacing: 20) {
-                Spacer()
-                Image(systemName: "mappin.slash")
-                    .font(.system(size: 56)).foregroundColor(.secondary)
-                Text("No locations mapped yet").font(.title3.bold())
-                Text("Scan your building first, then tap \"Mark Locations on Floor Plan\" to add points of interest. They'll appear here for AR navigation.")
-                    .font(.subheadline).foregroundColor(.secondary)
-                    .multilineTextAlignment(.center).padding(.horizontal, 40)
-                Button { dismiss() } label: {
-                    Label("Go back and scan", systemImage: "cube.transparent")
-                        .font(.headline).foregroundColor(.white)
-                        .padding(.horizontal, 28).padding(.vertical, 14)
-                        .background(Color.indigo).clipShape(Capsule())
-                }
-                Spacer()
-            }
-
-            HStack {
-                Button { dismiss() } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 15, weight: .semibold)).foregroundColor(.primary)
-                        .frame(width: 38, height: 38)
-                        .background(.regularMaterial).clipShape(Circle())
-                        .shadow(color: .black.opacity(0.12), radius: 4)
-                }
-                Spacer()
-                Text("AR Navigation")
-                    .font(.subheadline.bold())
-                    .padding(.horizontal, 14).padding(.vertical, 8)
-                    .background(.regularMaterial).clipShape(Capsule())
-                    .shadow(color: .black.opacity(0.10), radius: 4)
-                Spacer()
-                Color.clear.frame(width: 38, height: 38)
-            }
-            .padding(.horizontal, 16).padding(.top, 8)
         }
     }
 }

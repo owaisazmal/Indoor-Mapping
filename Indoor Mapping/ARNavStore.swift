@@ -54,9 +54,10 @@ final class ARNavStore: ObservableObject {
     /// which is exactly what ARKit's −Z axis represents.
     private(set) var headingOffsetDegrees: Double
 
-    /// Optional graph used for A* pathfinding in navigate(to:).
-    /// When nil the navigator falls back to a direct UV line to the destination.
     var navGraph: NavGraph?
+    /// Walkable zones loaded from the NavGraph.  Set by ARNavActiveView before start().
+    /// Empty → fallback clamp to [0, 1].
+    var walkableRects: [CGRect] = []
 
     private let arSession      = ARNavSession()
     private let pathRenderer   = ARPathRenderer()
@@ -211,13 +212,34 @@ final class ARNavStore: ObservableObject {
         let dx = CGFloat(relX_r) / CGFloat(floorWidthMeters)
         let dz = CGFloat(relZ_r) / CGFloat(floorHeightMeters)
 
-        // Apply the rotated delta to the user-confirmed UV origin.
-        userUV = CGPoint(x: originUV.x + dx, y: originUV.y + dz)
+        // 1. Compute raw new UV from AR displacement.
+        let rawUV = CGPoint(x: originUV.x + dx, y: originUV.y + dz)
+
+        // 2. Clamp to walkable zones (or full image if none defined).
+        userUV = clampToWalkableArea(rawUV)
 
         if let nav = activeNav {
             let ex = worldX - nav.worldX, ez = worldZ - nav.worldZ
             distMeters = sqrt(ex * ex + ez * ez)
             pathRenderer.updateProgress(userUV: userUV)
         }
+    }
+
+    // MARK: - Walkable-area clamping
+
+    private func clampToWalkableArea(_ uv: CGPoint) -> CGPoint {
+        guard !walkableRects.isEmpty else {
+            return CGPoint(x: min(max(uv.x, 0), 1), y: min(max(uv.y, 0), 1))
+        }
+        // Inside any zone → no adjustment needed.
+        if walkableRects.contains(where: { $0.contains(uv) }) { return uv }
+        // Outside all zones → snap to nearest point on nearest zone.
+        let snapped = walkableRects.map { r -> CGPoint in
+            CGPoint(x: min(max(uv.x, r.minX), r.maxX),
+                    y: min(max(uv.y, r.minY), r.maxY))
+        }.min { a, b in
+            hypot(a.x - uv.x, a.y - uv.y) < hypot(b.x - uv.x, b.y - uv.y)
+        }
+        return snapped ?? uv
     }
 }

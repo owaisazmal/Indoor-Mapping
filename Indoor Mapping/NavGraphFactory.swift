@@ -25,10 +25,9 @@ struct NavGraphPayload: Codable {
     struct NodeRecord: Codable {
         let id:   String
         let name: String
-        /// Horizontal UV position on the floor-plan image (0 = left, 1 = right).
-        let u: Double
-        /// Vertical UV position on the floor-plan image (0 = top, 1 = bottom).
-        let v: Double
+        let u:    Double
+        let v:    Double
+        let icon: String?   // optional — absent in graphs built before icon support
 
         var cgPoint: CGPoint { CGPoint(x: u, y: v) }
     }
@@ -57,20 +56,33 @@ struct NavGraphPayload: Codable {
         }
     }
 
+    struct WalkableRectRecord: Codable {
+        let minU: Double
+        let minV: Double
+        let maxU: Double
+        let maxV: Double
+        var cgRect: CGRect {
+            CGRect(x: minU, y: minV, width: maxU - minU, height: maxV - minV)
+        }
+    }
+
     let nodes: [NodeRecord]
     let edges: [EdgeRecord]
+    let walkableRects: [WalkableRectRecord]?  // optional — absent in older exports
 
     /// Materialise a `NavGraph` from this payload.
     func buildNavGraph() -> NavGraph {
         let graph = NavGraph()
         for n in nodes {
-            graph.addNode(NavNode(id: n.id, name: n.name, uv: n.cgPoint))
+            graph.addNode(NavNode(id: n.id, name: n.name, uv: n.cgPoint,
+                                  icon: n.icon ?? "mappin.fill"))
         }
         for e in edges {
             graph.addEdge(from: e.from, to: e.to,
                           weight: e.weight,
                           isWheelchairAccessible: e.accessible)
         }
+        graph.walkableRects = (walkableRects ?? []).map { $0.cgRect }
         return graph
     }
 }
@@ -88,6 +100,17 @@ enum NavGraphFactory {
     /// let graph = NavGraphFactory.load(named: "building_1")
     /// ```
     /// Returns `nil` and prints a diagnostic if the file is missing or malformed.
+    // MARK: Documents directory
+
+    /// Loads the NavGraph that AppController saved to the Documents directory.
+    /// Returns nil if no file has been saved yet (first launch, or after reset).
+    @discardableResult
+    static func loadFromDocuments() -> NavGraph? {
+        load(at: AppController.graphURL)
+    }
+
+    // MARK: Bundle
+
     @discardableResult
     static func load(named filename: String,
                      in bundle: Bundle = .main) -> NavGraph? {
@@ -95,16 +118,23 @@ enum NavGraphFactory {
             print("NavGraphFactory: '\(filename).json' not found in bundle")
             return nil
         }
+        return load(at: url)
+    }
+
+    /// Core loader used by both loadFromDocuments() and load(named:in:).
+    @discardableResult
+    static func load(at url: URL) -> NavGraph? {
         do {
-            let data    = try Data(contentsOf: url)
-            let payload = try JSONDecoder().decode(NavGraphPayload.self, from: data)
+            let data       = try Data(contentsOf: url)
+            let payload    = try JSONDecoder().decode(NavGraphPayload.self, from: data)
             let graph      = payload.buildNavGraph()
             let nodeCount  = graph.nodes.count
             let edgeCount  = graph.adjacency.values.reduce(0) { $0 + $1.count } / 2
-            print("NavGraphFactory: loaded \(nodeCount) nodes, \(edgeCount) edges from '\(filename).json'")
+            let zoneCount = graph.walkableRects.count
+            print("NavGraphFactory: loaded \(nodeCount) nodes, \(edgeCount) edges, \(zoneCount) zones from \(url.lastPathComponent)")
             return graph
         } catch {
-            print("NavGraphFactory: failed to decode '\(filename).json': \(error)")
+            print("NavGraphFactory: failed to decode \(url.lastPathComponent): \(error)")
             return nil
         }
     }
@@ -139,12 +169,19 @@ enum NavGraphFactory {
                                                accessible: edge.isWheelchairAccessible))
             }
         }
-        let nodeRecords: [NavGraphPayload.NodeRecord] = graph.nodes.values
-            .sorted { $0.id < $1.id }
-            .map { NavGraphPayload.NodeRecord(id: $0.id, name: $0.name,
-                                              u: Double($0.uv.x), v: Double($0.uv.y)) }
+        let sortedNodes = graph.nodes.values.sorted { $0.id < $1.id }
+        let nodeRecords: [NavGraphPayload.NodeRecord] = sortedNodes.map { n in
+            NavGraphPayload.NodeRecord(id: n.id, name: n.name,
+                                       u: Double(n.uv.x), v: Double(n.uv.y),
+                                       icon: n.icon)
+        }
         let sortedEdges = edgeRecords.sorted { $0.from < $1.from }
-        let payload     = NavGraphPayload(nodes: nodeRecords, edges: sortedEdges)
+        let rectRecords: [NavGraphPayload.WalkableRectRecord] = graph.walkableRects.map { r in
+            NavGraphPayload.WalkableRectRecord(
+                minU: Double(r.minX), minV: Double(r.minY),
+                maxU: Double(r.maxX), maxV: Double(r.maxY))
+        }
+        let payload = NavGraphPayload(nodes: nodeRecords, edges: sortedEdges, walkableRects: rectRecords)
         return encode(payload)
     }
 }
