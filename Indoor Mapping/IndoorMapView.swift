@@ -95,6 +95,12 @@ struct IndoorMapView: UIViewRepresentable {
 
     var isEditing: Bool
 
+    // Callbacks fired by 2-finger gestures during alignment so the floor plan can be adjusted
+    // while 1-finger pan still scrolls the map normally.
+    var onMoveFloorPlan:   ((Double, Double) -> Void)? = nil   // latDelta, lonDelta
+    var onScaleFloorPlan:  ((CGFloat) -> Void)?        = nil   // incremental scale factor
+    var onRotateFloorPlan: ((Double) -> Void)?         = nil   // delta degrees
+
     @Binding var trackingMode:      MKUserTrackingMode
     @Binding var currentMapCenter:  CLLocationCoordinate2D
     @Binding var currentMapSpan:    MKCoordinateSpan
@@ -109,6 +115,15 @@ struct IndoorMapView: UIViewRepresentable {
         mapView.showsCompass = true
         mapView.showsScale = true
 
+        // Only set a street-level camera when we already have a real location fix.
+        // If location is still nil (the common case on launch), leave MapKit's default
+        // view — updateUIView will snap to the correct coordinate on the first fix.
+        // This prevents the camera jumping to the hardcoded Apple HQ fallback.
+        if let coord = userLocation?.coordinate {
+            let cam = MKMapCamera(lookingAtCenter: coord, fromDistance: 150, pitch: 0, heading: 0)
+            mapView.setCamera(cam, animated: false)
+        }
+
         let overlay = makeFloorPlanOverlay()
         context.coordinator.floorPlanOverlay = overlay
         mapView.addOverlay(overlay)
@@ -117,12 +132,20 @@ struct IndoorMapView: UIViewRepresentable {
 
     func updateUIView(_ uiView: MKMapView, context: Context) {
         let coord = context.coordinator
+        // Keep parent fresh so gesture callbacks always see the latest closures.
+        coord.parent = self
 
-        // Disable map interaction during alignment so finger gestures reach SwiftUI
-        uiView.isScrollEnabled  = !isEditing
-        uiView.isZoomEnabled    = !isEditing
-        uiView.isRotateEnabled  = !isEditing
-        uiView.isPitchEnabled   = !isEditing
+        // "Adjust Image" (isEditing = true): lock the map completely so gestures
+        // only drive the floor-plan recognisers below, never the underlying map.
+        // "Move Map" mode and normal use: map gestures are fully enabled and the
+        // floor-plan recognisers are absent, so there is no cross-talk.
+        uiView.isScrollEnabled = !isEditing
+        uiView.isZoomEnabled   = !isEditing
+        uiView.isRotateEnabled = !isEditing
+        uiView.isPitchEnabled  = !isEditing
+
+        if isEditing { coord.installFloorPlanGestures(on: uiView) }
+        else         { coord.removeFloorPlanGestures(from: uiView) }
 
         // ── User location annotation ──────────────────────────────────────────
         if let loc = userLocation {
@@ -144,18 +167,42 @@ struct IndoorMapView: UIViewRepresentable {
         }
 
         // ── Camera tracking (manual, since showsUserLocation = false) ─────────
-        if trackingMode != coord.prevTrackingMode {
-            // Mode just changed — snap to user immediately
-            coord.prevTrackingMode = trackingMode
-            if trackingMode != .none, let loc = userLocation {
-                centerCamera(on: loc, in: uiView, heading: userHeading)
+        //
+        // Priority 1 — first-ever fix: snap to street level once, regardless of
+        // what tracking mode the button is in.  Also consumes a pending .follow
+        // press that arrived before location was available.
+        if !coord.hasInitiallyCentered, let loc = userLocation {
+            coord.hasInitiallyCentered = true
+            centerCamera(on: loc, in: uiView, heading: userHeading, snapToStreetLevel: true)
+            if trackingMode == .follow {
+                DispatchQueue.main.async { coord.parent.trackingMode = .none }
             }
-        } else if trackingMode != .none, let loc = userLocation {
-            // Keep following — only move if user has drifted > ~5 m from centre
+
+        // Priority 2 — explicit button press (tracking mode changed).
+        // prevTrackingMode is only updated when we successfully act on the change
+        // (i.e. when location is available). If location is nil, we leave
+        // prevTrackingMode stale so the next updateUIView retries automatically.
+        } else if trackingMode != coord.prevTrackingMode, let loc = userLocation {
+            coord.prevTrackingMode = trackingMode
+            switch trackingMode {
+            case .follow:
+                // One-shot "Locate Me": snap and zoom to street level once, then
+                // immediately release so location updates never re-centre against intent.
+                centerCamera(on: loc, in: uiView, heading: userHeading, snapToStreetLevel: true)
+                DispatchQueue.main.async { coord.parent.trackingMode = .none }
+            case .followWithHeading:
+                centerCamera(on: loc, in: uiView, heading: userHeading, snapToStreetLevel: false)
+            default:
+                break   // .none just clears prevTrackingMode, no camera move needed
+            }
+
+        // Priority 3 — continuous follow, only for navigation (.followWithHeading).
+        // .follow is always one-shot (handled above) so it never reaches here.
+        } else if trackingMode == .followWithHeading, let loc = userLocation {
             let mc = uiView.centerCoordinate
-            if abs(mc.latitude - loc.coordinate.latitude)   > 0.00005 ||
+            if abs(mc.latitude  - loc.coordinate.latitude)  > 0.00005 ||
                abs(mc.longitude - loc.coordinate.longitude) > 0.00005 {
-                centerCamera(on: loc, in: uiView, heading: userHeading)
+                centerCamera(on: loc, in: uiView, heading: userHeading, snapToStreetLevel: false)
             }
         }
 
@@ -238,13 +285,24 @@ struct IndoorMapView: UIViewRepresentable {
 
     // MARK: Helpers
 
-    private func centerCamera(on loc: CLLocation, in mapView: MKMapView, heading: CLLocationDirection) {
-        if trackingMode == .followWithHeading && heading >= 0 {
+    private func centerCamera(on loc: CLLocation, in mapView: MKMapView,
+                              heading: CLLocationDirection,
+                              snapToStreetLevel: Bool = false) {
+        if snapToStreetLevel {
+            // First-ever fix: force a building-level zoom, ignore current altitude.
+            let cam = MKMapCamera(lookingAtCenter: loc.coordinate,
+                                  fromDistance: 150, pitch: 0, heading: 0)
+            mapView.setCamera(cam, animated: true)
+        } else if trackingMode == .followWithHeading && heading >= 0 {
+            // Heading mode needs a full camera to set the heading; preserve altitude.
             let cam = MKMapCamera(lookingAtCenter: loc.coordinate,
                                   fromDistance: mapView.camera.altitude,
                                   pitch: 0, heading: heading)
             mapView.setCamera(cam, animated: true)
         } else {
+            // Normal follow: only re-centre, never touch the zoom level.
+            // Using setCenter avoids creating a new camera mid-animation which would
+            // capture the transitional altitude and undo the initial street-level snap.
             mapView.setCenter(loc.coordinate, animated: true)
         }
     }
@@ -284,7 +342,7 @@ struct IndoorMapView: UIViewRepresentable {
 
     // MARK: Coordinator
 
-    class Coordinator: NSObject, MKMapViewDelegate {
+    class Coordinator: NSObject, MKMapViewDelegate, UIGestureRecognizerDelegate {
         var parent: IndoorMapView
 
         var userLocationAnnotation: UserLocationAnnotation?
@@ -294,16 +352,112 @@ struct IndoorMapView: UIViewRepresentable {
         weak var currentRoute:      MKPolyline?
         var prevTrackingMode:       MKUserTrackingMode = .none
         var lastBoundaryParams:     (Double, Double, Double, Double, Double)?
+        var hasInitiallyCentered    = false
+
+        // Floor-plan gesture recognizers (2-finger; installed only while editing)
+        private var fpPinch:    UIPinchGestureRecognizer?
+        private var fpRotation: UIRotationGestureRecognizer?
+        private var fpPan:      UIPanGestureRecognizer?
+
+        // Incremental gesture state
+        private var prevScale       = CGFloat(1)
+        private var prevRotation    = CGFloat(0)
+        private var prevTranslation = CGPoint.zero
 
         init(_ parent: IndoorMapView) { self.parent = parent }
+
+        // MARK: - Floor-plan gesture management
+
+        func installFloorPlanGestures(on mapView: MKMapView) {
+            guard fpPinch == nil else { return }
+
+            let pinch    = UIPinchGestureRecognizer(target: self, action: #selector(handlePinch))
+            let rotation = UIRotationGestureRecognizer(target: self, action: #selector(handleRotation))
+            let pan      = UIPanGestureRecognizer(target: self, action: #selector(handlePan))
+            pan.minimumNumberOfTouches = 2
+            pan.maximumNumberOfTouches = 2
+
+            for gr in [pinch, rotation, pan] as [UIGestureRecognizer] { gr.delegate = self }
+
+            mapView.addGestureRecognizer(pinch)
+            mapView.addGestureRecognizer(rotation)
+            mapView.addGestureRecognizer(pan)
+            fpPinch = pinch; fpRotation = rotation; fpPan = pan
+        }
+
+        func removeFloorPlanGestures(from mapView: MKMapView) {
+            [fpPinch, fpRotation, fpPan].forEach { gr in
+                if let gr { mapView.removeGestureRecognizer(gr) }
+            }
+            fpPinch = nil; fpRotation = nil; fpPan = nil
+        }
+
+        // Allow our three custom recognizers to fire simultaneously with each other,
+        // but never with MapKit's built-in gesture recognizers — that is what isolates
+        // the two modes. (In practice the map flags are also disabled in Adjust Image
+        // mode, so this is belt-and-suspenders for any edge-case recognizer ordering.)
+        func gestureRecognizer(_ g: UIGestureRecognizer,
+                               shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
+            let ours: [UIGestureRecognizer?] = [fpPinch, fpRotation, fpPan]
+            return ours.contains { $0 === g } && ours.contains { $0 === other }
+        }
+
+        @objc private func handlePinch(_ gr: UIPinchGestureRecognizer) {
+            switch gr.state {
+            case .began:  prevScale = 1
+            case .changed:
+                let factor = gr.scale / prevScale
+                prevScale  = gr.scale
+                parent.onScaleFloorPlan?(factor)
+            default:      prevScale = 1
+            }
+        }
+
+        @objc private func handleRotation(_ gr: UIRotationGestureRecognizer) {
+            switch gr.state {
+            case .began:  prevRotation = 0
+            case .changed:
+                let delta    = gr.rotation - prevRotation
+                prevRotation = gr.rotation
+                parent.onRotateFloorPlan?(Double(delta * 180 / .pi))
+            default:      prevRotation = 0
+            }
+        }
+
+        @objc private func handlePan(_ gr: UIPanGestureRecognizer) {
+            guard let mapView = gr.view as? MKMapView else { return }
+            switch gr.state {
+            case .began:  prevTranslation = .zero
+            case .changed:
+                let t  = gr.translation(in: mapView)
+                let dx = t.x - prevTranslation.x
+                let dy = t.y - prevTranslation.y
+                prevTranslation = t
+                // Use mapView.convert to derive the geographic delta directly from
+                // MapKit's own projection. This is correct regardless of map position,
+                // zoom, or rotation — unlike span/size math which can invert direction
+                // when the floor plan is offset from the current viewport centre.
+                let mid     = CGPoint(x: mapView.bounds.midX, y: mapView.bounds.midY)
+                let ref     = mapView.convert(mid, toCoordinateFrom: mapView)
+                let shifted = mapView.convert(CGPoint(x: mid.x + dx, y: mid.y + dy),
+                                              toCoordinateFrom: mapView)
+                parent.onMoveFloorPlan?(shifted.latitude  - ref.latitude,
+                                        shifted.longitude - ref.longitude)
+            default:      prevTranslation = .zero
+            }
+        }
 
         func mapView(_ mapView: MKMapView, regionWillChangeAnimated animated: Bool) {
             DispatchQueue.main.async {
                 self.parent.currentMapCenter = mapView.centerCoordinate
                 self.parent.currentMapSpan   = mapView.region.span
             }
+            // Break tracking synchronously on a user-initiated pan (animated = false
+            // means a gesture, not a programmatic camera move).  Must be synchronous:
+            // a location update that fires in the same run-loop cycle would otherwise
+            // still see the old trackingMode and immediately re-centre the map.
             if !animated, parent.trackingMode != .none {
-                DispatchQueue.main.async { self.parent.trackingMode = .none }
+                parent.trackingMode = .none
             }
         }
 

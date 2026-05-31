@@ -9,7 +9,7 @@ struct ContentView: View {
     @StateObject private var locationManager = LocationManager()
 
     @State private var currentMapCenter      = CLLocationCoordinate2D(latitude: 37.334800, longitude: -122.009000)
-    @State private var trackingMode: MKUserTrackingMode = .follow
+    @State private var trackingMode: MKUserTrackingMode = .none
     @State private var activeRoute:          MKPolyline?
     @State private var selectedDestination:  String?
     @State private var showBuildingBoundary  = false
@@ -17,19 +17,11 @@ struct ContentView: View {
     @State private var showingMappingView    = false
     @State private var showingARNav          = false
     @State private var mappingResult:        MappingResult?
-    @State private var selectedPhoto:        PhotosPickerItem?
-
-    // Map span — updated by IndoorMapView; used to convert screen delta → coordinates
-    @State private var currentMapSpan = MKCoordinateSpan(latitudeDelta: 0.005, longitudeDelta: 0.005)
-
-    // Alignment mode: true = finger gestures adjust the image (map locked);
-    //                 false = finger gestures pan/zoom the map normally.
+    @State private var selectedPhoto:     PhotosPickerItem?
+    @State private var currentMapSpan   = MKCoordinateSpan(latitudeDelta: 0.005, longitudeDelta: 0.005)
+    /// true  → 2-finger gestures adjust the floor-plan image
+    /// false → normal map interaction; use crosshair + Snap to position
     @State private var alignIsAdjusting = true
-
-    // Gesture tracking state for alignment mode
-    @State private var alignDragPrev  = CGSize.zero
-    @State private var alignScalePrev = CGFloat(1.0)
-    @State private var alignRotPrev   = Double(0)
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -47,72 +39,35 @@ struct ContentView: View {
                 userHeading:            locationManager.userHeading,
                 showBuildingBoundary:   showBuildingBoundary,
                 isEditing:              floorPlan.isEditing && alignIsAdjusting,
+                onMoveFloorPlan:        { lat, lon in floorPlan.moveCenter(latDelta: lat, lonDelta: lon) },
+                onScaleFloorPlan:       { factor in floorPlan.applyScale(factor) },
+                onRotateFloorPlan:      { delta in floorPlan.applyRotation(deltaDegrees: delta) },
                 trackingMode:           $trackingMode,
                 currentMapCenter:       $currentMapCenter,
                 currentMapSpan:         $currentMapSpan
             )
             .edgesIgnoringSafeArea(.all)
 
-            // 2. GESTURE OVERLAY — only active in "Adjust Image" sub-mode;
-            //    map gestures are disabled at that point so there is no conflict.
-            if floorPlan.isEditing && alignIsAdjusting {
-                GeometryReader { geo in
-                    Color.clear
-                        .contentShape(Rectangle())
-                        .gesture(
-                            SimultaneousGesture(
-                                SimultaneousGesture(
-                                    DragGesture(minimumDistance: 1)
-                                        .onChanged { value in
-                                            let dx = value.translation.width  - alignDragPrev.width
-                                            let dy = value.translation.height - alignDragPrev.height
-                                            alignDragPrev = value.translation
-                                            let latDelta = Double(-dy) * currentMapSpan.latitudeDelta  / Double(geo.size.height)
-                                            let lonDelta = Double( dx) * currentMapSpan.longitudeDelta / Double(geo.size.width)
-                                            floorPlan.moveCenter(latDelta: latDelta, lonDelta: lonDelta)
-                                        }
-                                        .onEnded { _ in alignDragPrev = .zero },
-                                    MagnificationGesture()
-                                        .onChanged { value in
-                                            let factor = value / alignScalePrev
-                                            alignScalePrev = value
-                                            floorPlan.applyScale(factor)
-                                        }
-                                        .onEnded { _ in alignScalePrev = 1.0 }
-                                ),
-                                RotationGesture()
-                                    .onChanged { value in
-                                        let delta = value.degrees - alignRotPrev
-                                        alignRotPrev = value.degrees
-                                        floorPlan.applyRotation(deltaDegrees: delta)
-                                    }
-                                    .onEnded { _ in alignRotPrev = 0 }
-                            )
-                        )
-                }
-                .edgesIgnoringSafeArea(.all)
-            }
-
-            // 3. CROSSHAIR (only during alignment)
-            if floorPlan.isEditing {
+            // 2. CROSSHAIR — visible in Move Map mode to show where Snap will land
+            if floorPlan.isEditing && !alignIsAdjusting {
                 CrosshairOverlay()
             }
 
-            // 4. ADAPTIVE UI
+            // 3. ADAPTIVE UI
             VStack(spacing: 0) {
                 if floorPlan.isEditing {
                     VStack(spacing: 6) {
                         Text(alignIsAdjusting ? "Adjusting Image" : "Move Map")
                             .font(.subheadline).bold()
                         if alignIsAdjusting {
-                            HStack(spacing: 16) {
+                            HStack(spacing: 14) {
                                 Label("Drag",   systemImage: "hand.draw.fill")
                                 Label("Pinch",  systemImage: "arrow.up.left.and.arrow.down.right")
                                 Label("Rotate", systemImage: "rotate.right")
                             }
                             .font(.caption).foregroundColor(.secondary)
                         } else {
-                            Text("Pan the map, then tap Snap to align")
+                            Text("Pan to your building, then tap Snap")
                                 .font(.caption).foregroundColor(.secondary)
                         }
                     }
@@ -129,9 +84,11 @@ struct ContentView: View {
                 Spacer()
 
                 if floorPlan.isEditing {
-                    AlignmentEditorView(floorPlan: floorPlan,
-                                        isAdjusting: $alignIsAdjusting,
-                                        currentMapCenter: currentMapCenter) {
+                    AlignmentEditorView(
+                        floorPlan:        floorPlan,
+                        isAdjusting:      $alignIsAdjusting,
+                        currentMapCenter: currentMapCenter
+                    ) {
                         alignIsAdjusting = true
                         floorPlan.finishEditing()
                         locationManager.buildingBounds = BuildingBounds(
@@ -205,22 +162,6 @@ struct ContentView: View {
             )
         }
         .onAppear { locationManager.requestPermission() }
-    }
-}
-
-// MARK: - Crosshair
-
-private struct CrosshairOverlay: View {
-    var body: some View {
-        GeometryReader { geo in
-            Image(systemName: "plus.viewfinder")
-                .font(.system(size: 44, weight: .ultraLight))
-                .foregroundColor(.blue)
-                .background(Circle().fill(Color.white.opacity(0.5)).frame(width: 30, height: 30))
-                .position(x: geo.size.width / 2, y: geo.size.height / 2)
-                .allowsHitTesting(false)
-        }
-        .transition(.scale.combined(with: .opacity))
     }
 }
 
@@ -325,6 +266,22 @@ private struct UploadPromptCard: View {
     }
 }
 
+// MARK: - Crosshair
+
+private struct CrosshairOverlay: View {
+    var body: some View {
+        GeometryReader { geo in
+            Image(systemName: "plus.viewfinder")
+                .font(.system(size: 44, weight: .ultraLight))
+                .foregroundColor(.blue)
+                .background(Circle().fill(Color.white.opacity(0.5)).frame(width: 30, height: 30))
+                .position(x: geo.size.width / 2, y: geo.size.height / 2)
+                .allowsHitTesting(false)
+        }
+        .transition(.scale.combined(with: .opacity))
+    }
+}
+
 // MARK: - Alignment editor
 
 private struct AlignmentEditorView: View {
@@ -336,7 +293,7 @@ private struct AlignmentEditorView: View {
     var body: some View {
         VStack(spacing: 14) {
 
-            // Mode toggle — determines whether fingers move the floor plan or the map
+            // Mode toggle
             HStack(spacing: 0) {
                 modeButton(title: "Adjust Image", icon: "hand.draw.fill",   active: isAdjusting)  { isAdjusting = true  }
                 modeButton(title: "Move Map",     icon: "map",               active: !isAdjusting) { isAdjusting = false }
@@ -344,7 +301,6 @@ private struct AlignmentEditorView: View {
             .background(Color.primary.opacity(0.06))
             .clipShape(RoundedRectangle(cornerRadius: 12))
 
-            // Snap only useful when navigating the map so crosshair is visible
             if !isAdjusting {
                 Button { floorPlan.snap(to: currentMapCenter) } label: {
                     Label("Snap Image to Crosshair", systemImage: "scope")

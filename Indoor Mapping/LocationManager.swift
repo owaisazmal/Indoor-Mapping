@@ -65,10 +65,12 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     // MARK: - Location updates
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        guard let raw = locations.last,
-              raw.horizontalAccuracy > 0,
-              raw.horizontalAccuracy < 20
-        else { return }
+        guard let raw = locations.last, raw.horizontalAccuracy > 0 else { return }
+
+        // First fix: allow up to 100 m so the map centres immediately even before
+        // GPS warms up. Once smoothedCoord is set, tighten back to 20 m for tracking.
+        let accuracyThreshold: Double = smoothedCoord == nil ? 100 : 20
+        guard raw.horizontalAccuracy < accuracyThreshold else { return }
 
         let speedSaysMoving = raw.speed >= 0 && raw.speed > 0.4
         let moving          = !motionIsStationary || speedSaysMoving

@@ -4,10 +4,10 @@
     "Localizable": [
       {
         "comment": "",
-        "key": "Pan the map, then tap Snap to align",
+        "key": "Pan to your building, then tap Snap",
         "location": {
           "startingColumn": 34,
-          "startingLine": 115
+          "startingLine": 70
         }
       },
       {
@@ -15,7 +15,7 @@
         "key": "Adjusting Image",
         "location": {
           "startingColumn": 49,
-          "startingLine": 105
+          "startingLine": 60
         }
       },
       {
@@ -23,7 +23,7 @@
         "key": "Move Map",
         "location": {
           "startingColumn": 69,
-          "startingLine": 105
+          "startingLine": 60
         }
       },
       {
@@ -31,7 +31,7 @@
         "key": "Drag",
         "location": {
           "startingColumn": 39,
-          "startingLine": 109
+          "startingLine": 64
         }
       },
       {
@@ -39,7 +39,7 @@
         "key": "Pinch",
         "location": {
           "startingColumn": 39,
-          "startingLine": 110
+          "startingLine": 65
         }
       },
       {
@@ -47,7 +47,7 @@
         "key": "Rotate",
         "location": {
           "startingColumn": 39,
-          "startingLine": 111
+          "startingLine": 66
         }
       },
       {
@@ -55,7 +55,7 @@
         "key": "Search building...",
         "location": {
           "startingColumn": 18,
-          "startingLine": 236
+          "startingLine": 177
         }
       },
       {
@@ -63,7 +63,7 @@
         "key": "Loading floor plan…",
         "location": {
           "startingColumn": 30,
-          "startingLine": 281
+          "startingLine": 222
         }
       },
       {
@@ -71,7 +71,7 @@
         "key": "This will only take a moment",
         "location": {
           "startingColumn": 30,
-          "startingLine": 283
+          "startingLine": 224
         }
       },
       {
@@ -79,7 +79,7 @@
         "key": "Add a floor plan",
         "location": {
           "startingColumn": 30,
-          "startingLine": 299
+          "startingLine": 240
         }
       },
       {
@@ -87,7 +87,7 @@
         "key": "Upload a building map to unlock scanning and AR navigation",
         "location": {
           "startingColumn": 30,
-          "startingLine": 301
+          "startingLine": 242
         }
       },
       {
@@ -95,7 +95,7 @@
         "key": "Choose from Photos",
         "location": {
           "startingColumn": 27,
-          "startingLine": 311
+          "startingLine": 252
         }
       },
       {
@@ -103,7 +103,7 @@
         "key": "Snap Image to Crosshair",
         "location": {
           "startingColumn": 27,
-          "startingLine": 350
+          "startingLine": 306
         }
       },
       {
@@ -111,7 +111,7 @@
         "key": "Save Alignment",
         "location": {
           "startingColumn": 22,
-          "startingLine": 358
+          "startingLine": 314
         }
       },
       {
@@ -119,7 +119,7 @@
         "key": "Navigating to",
         "location": {
           "startingColumn": 26,
-          "startingLine": 488
+          "startingLine": 444
         }
       },
       {
@@ -127,7 +127,7 @@
         "key": "2 mins",
         "location": {
           "startingColumn": 22,
-          "startingLine": 500
+          "startingLine": 456
         }
       },
       {
@@ -135,7 +135,7 @@
         "key": "• 150 ft",
         "location": {
           "startingColumn": 22,
-          "startingLine": 501
+          "startingLine": 457
         }
       },
       {
@@ -143,7 +143,7 @@
         "key": "Get Directions",
         "location": {
           "startingColumn": 30,
-          "startingLine": 529
+          "startingLine": 485
         }
       }
     ]
