@@ -13,6 +13,10 @@ struct ContentView: View {
     @State private var activeRoute:          MKPolyline?
     @State private var selectedDestination:  String?
     @State private var showBuildingBoundary  = false
+    /// Navigation graph loaded from bundle (optional — features degrade gracefully when nil).
+    @State private var navGraph:             NavGraph? = NavGraphFactory.load(named: "building_1")
+    /// UV-space path from the last A* query.  Drives the floor-plan polyline.
+    @State private var pathUVs:              [CGPoint] = []
     @State private var showingDirectionsSheet = false
     @State private var showingMappingView    = false
     @State private var showingARNav          = false
@@ -34,11 +38,15 @@ struct ContentView: View {
                 overlayHeightMeters:    floorPlan.heightMeters,
                 overlayRotationDegrees: floorPlan.rotationDegrees,
                 overlayAlpha:           floorPlan.alpha,
-                route:                  activeRoute,
+                route:                  pathUVs.isEmpty ? activeRoute : nil,
                 userLocation:           locationManager.userLocation,
                 userHeading:            locationManager.userHeading,
                 showBuildingBoundary:   showBuildingBoundary,
                 isEditing:              floorPlan.isEditing && alignIsAdjusting,
+                navGraph:               navGraph,
+                pathUVs:                pathUVs,
+                userUV:                 locationManager.userLocation.map { locationToUV($0) },
+                onTapDestination:       { node in handleTapDestination(node) },
                 onMoveFloorPlan:        { lat, lon in floorPlan.moveCenter(latDelta: lat, lonDelta: lon) },
                 onScaleFloorPlan:       { factor in floorPlan.applyScale(factor) },
                 onRotateFloorPlan:      { delta in floorPlan.applyRotation(deltaDegrees: delta) },
@@ -116,7 +124,8 @@ struct ContentView: View {
                     } else if let destination = selectedDestination {
                         RouteCardView(destination: destination) {
                             withAnimation(.spring()) {
-                                activeRoute = nil
+                                activeRoute         = nil
+                                pathUVs             = []
                                 selectedDestination = nil
                             }
                         }
@@ -495,6 +504,56 @@ struct DirectionsSheet: View {
             CLLocationCoordinate2D(latitude: 37.334700, longitude: -122.008100)
         ]
         onSelectDestination(destination, MKPolyline(coordinates: &coords, count: coords.count))
+    }
+}
+
+// MARK: - Tap-to-navigate helpers (ContentView extension)
+
+extension ContentView {
+
+    /// Converts a GPS fix to a UV position on the current floor plan.
+    /// Uses the same rotation convention as IndoorMapOverlayRenderer.
+    func locationToUV(_ location: CLLocation) -> CGPoint {
+        let center  = floorPlan.center
+        let mPerLat = 111_000.0
+        let mPerLon = 111_000.0 * cos(center.latitude * .pi / 180)
+
+        let northM  = (location.coordinate.latitude  - center.latitude)  * mPerLat
+        let eastM   = (location.coordinate.longitude - center.longitude) * mPerLon
+
+        let a  = floorPlan.rotationDegrees * .pi / 180.0
+        let ca = cos(a), sa = sin(a)
+
+        // Inverse rotation: R(a)⁻¹ = R(a)ᵀ
+        let lx = eastM * ca - northM * sa
+        let ly = eastM * sa + northM * ca
+
+        return CGPoint(x: 0.5 + lx / floorPlan.widthMeters,
+                       y: 0.5 - ly / floorPlan.heightMeters)
+    }
+
+    /// Called when the user taps a location on the 2D floor plan.
+    /// Runs A* from the current GPS position to the tapped node and updates
+    /// `pathUVs` so the map view renders the Google Maps–style route.
+    func handleTapDestination(_ node: NavNode) {
+        // Start UV: GPS-derived if available, else centre of floor plan
+        let startUV = locationManager.userLocation.map { locationToUV($0) }
+            ?? CGPoint(x: 0.5, y: 0.5)
+
+        var newPath: [CGPoint]
+        if let graph  = navGraph,
+           let result = NavPathfinder(graph: graph).findPath(from: startUV, to: node) {
+            newPath = result.uvPath
+        } else {
+            // No graph or no path found: draw a straight line
+            newPath = [startUV, node.uv]
+        }
+
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+            pathUVs            = newPath
+            selectedDestination = node.name
+            activeRoute        = nil   // suppress legacy route while UV path is active
+        }
     }
 }
 

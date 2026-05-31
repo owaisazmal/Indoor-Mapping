@@ -4,9 +4,21 @@ import CoreLocation
 
 // MARK: - Overlay subclasses
 
-class BorderRoutePolyline: MKPolyline {}
-class FillRoutePolyline:   MKPolyline {}
-class BuildingBoundaryPolygon: MKPolygon {}
+class GlowRoutePolyline:      MKPolyline {}   // outer ambient glow layer
+class BorderRoutePolyline:    MKPolyline {}   // white border layer
+class FillRoutePolyline:      MKPolyline {}   // vibrant blue fill layer
+class BuildingBoundaryPolygon: MKPolygon  {}
+
+// MARK: - Destination annotation (tap-to-navigate pin)
+
+class DestinationAnnotation: NSObject, MKAnnotation {
+    @objc dynamic var coordinate: CLLocationCoordinate2D
+    var title: String?
+    let nodeID: String
+    init(_ coord: CLLocationCoordinate2D, title: String, nodeID: String) {
+        self.coordinate = coord; self.title = title; self.nodeID = nodeID
+    }
+}
 
 // MARK: - Custom user-location annotation
 // @objc dynamic makes `coordinate` KVO-observable so MapKit
@@ -46,17 +58,17 @@ class GoogleStyleUserDot: MKAnnotationView {
 
         let shadowPath = UIBezierPath(arcCenter: c, radius: dotRadius + ringWidth,
                                      startAngle: 0, endAngle: .pi * 2, clockwise: true).cgPath
-        shadowLayer.path = shadowPath
-        shadowLayer.fillColor = UIColor.white.cgColor
+        shadowLayer.path        = shadowPath
+        shadowLayer.fillColor   = UIColor.white.cgColor
         shadowLayer.shadowColor = UIColor.black.cgColor
         shadowLayer.shadowOpacity = 0.22
-        shadowLayer.shadowRadius = 5
-        shadowLayer.shadowOffset = CGSize(width: 0, height: 2)
+        shadowLayer.shadowRadius  = 5
+        shadowLayer.shadowOffset  = CGSize(width: 0, height: 2)
         layer.addSublayer(shadowLayer)
 
         let dotPath = UIBezierPath(arcCenter: c, radius: dotRadius,
-                                  startAngle: 0, endAngle: .pi * 2, clockwise: true).cgPath
-        dotLayer.path = dotPath
+                                   startAngle: 0, endAngle: .pi * 2, clockwise: true).cgPath
+        dotLayer.path      = dotPath
         dotLayer.fillColor = UIColor(red: 0.26, green: 0.58, blue: 0.97, alpha: 1).cgColor
         layer.addSublayer(dotLayer)
         updateCone()
@@ -66,13 +78,13 @@ class GoogleStyleUserDot: MKAnnotationView {
 
     private func updateCone() {
         guard let h = heading else { coneLayer.path = nil; return }
-        let c = CGPoint(x: canvasSize / 2, y: canvasSize / 2)
+        let c     = CGPoint(x: canvasSize / 2, y: canvasSize / 2)
         let angle = CGFloat(h) * .pi / 180 - .pi / 2
-        let p = UIBezierPath()
+        let p     = UIBezierPath()
         p.move(to: c)
         p.addArc(withCenter: c, radius: coneRadius,
                  startAngle: angle - coneHalfAngle,
-                 endAngle: angle + coneHalfAngle, clockwise: true)
+                 endAngle:   angle + coneHalfAngle, clockwise: true)
         p.close()
         coneLayer.path = p.cgPath
     }
@@ -82,24 +94,34 @@ class GoogleStyleUserDot: MKAnnotationView {
 
 struct IndoorMapView: UIViewRepresentable {
 
-    var floorPlanImage:       UIImage
-    var overlayCenter:        CLLocationCoordinate2D
-    var overlayWidthMeters:   Double
-    var overlayHeightMeters:  Double
+    var floorPlanImage:         UIImage
+    var overlayCenter:          CLLocationCoordinate2D
+    var overlayWidthMeters:     Double
+    var overlayHeightMeters:    Double
     var overlayRotationDegrees: Double
-    var overlayAlpha:         Double
-    var route:                MKPolyline?
-    var userLocation:         CLLocation?
-    var userHeading:          CLLocationDirection
-    var showBuildingBoundary: Bool
+    var overlayAlpha:           Double
+    var route:                  MKPolyline?
+    var userLocation:           CLLocation?
+    var userHeading:            CLLocationDirection
+    var showBuildingBoundary:   Bool
+    var isEditing:              Bool
 
-    var isEditing: Bool
+    // ── Tap-to-navigate ───────────────────────────────────────────────────────
+    /// Enables single-tap node snapping when non-nil.
+    var navGraph:         NavGraph?          = nil
+    /// UV-space waypoints from the pathfinder.  When non-empty this renders as
+    /// a three-layer Google Maps–style polyline and supersedes `route`.
+    var pathUVs:          [CGPoint]          = []
+    /// Current user UV position (from GPS→UV or AR tracking).
+    /// Used to trim the leading edge of the rendered path as the user advances.
+    var userUV:           CGPoint?           = nil
+    /// Fired with the snapped NavNode when the user taps the floor plan.
+    var onTapDestination: ((NavNode) -> Void)? = nil
 
-    // Callbacks fired by 2-finger gestures during alignment so the floor plan can be adjusted
-    // while 1-finger pan still scrolls the map normally.
-    var onMoveFloorPlan:   ((Double, Double) -> Void)? = nil   // latDelta, lonDelta
-    var onScaleFloorPlan:  ((CGFloat) -> Void)?        = nil   // incremental scale factor
-    var onRotateFloorPlan: ((Double) -> Void)?         = nil   // delta degrees
+    // Callbacks fired by 2-finger gestures during alignment
+    var onMoveFloorPlan:   ((Double, Double) -> Void)? = nil
+    var onScaleFloorPlan:  ((CGFloat) -> Void)?        = nil
+    var onRotateFloorPlan: ((Double) -> Void)?         = nil
 
     @Binding var trackingMode:      MKUserTrackingMode
     @Binding var currentMapCenter:  CLLocationCoordinate2D
@@ -111,14 +133,10 @@ struct IndoorMapView: UIViewRepresentable {
         let mapView = MKMapView()
         mapView.delegate = context.coordinator
         mapView.mapType = .standard
-        mapView.showsUserLocation = false   // Managed via our custom annotation
+        mapView.showsUserLocation = false
         mapView.showsCompass = true
-        mapView.showsScale = true
+        mapView.showsScale   = true
 
-        // Only set a street-level camera when we already have a real location fix.
-        // If location is still nil (the common case on launch), leave MapKit's default
-        // view — updateUIView will snap to the correct coordinate on the first fix.
-        // This prevents the camera jumping to the hardcoded Apple HQ fallback.
         if let coord = userLocation?.coordinate {
             let cam = MKMapCamera(lookingAtCenter: coord, fromDistance: 150, pitch: 0, heading: 0)
             mapView.setCamera(cam, animated: false)
@@ -127,18 +145,24 @@ struct IndoorMapView: UIViewRepresentable {
         let overlay = makeFloorPlanOverlay()
         context.coordinator.floorPlanOverlay = overlay
         mapView.addOverlay(overlay)
+
+        // Single-tap recognizer for tap-to-navigate.
+        // Installed always; enabled/disabled based on navGraph in updateUIView.
+        let tap = UITapGestureRecognizer(target: context.coordinator,
+                                         action: #selector(Coordinator.handleMapTap(_:)))
+        tap.numberOfTapsRequired = 1
+        tap.delegate = context.coordinator
+        mapView.addGestureRecognizer(tap)
+        context.coordinator.tapRecognizer = tap
+
         return mapView
     }
 
     func updateUIView(_ uiView: MKMapView, context: Context) {
         let coord = context.coordinator
-        // Keep parent fresh so gesture callbacks always see the latest closures.
         coord.parent = self
 
-        // "Adjust Image" (isEditing = true): lock the map completely so gestures
-        // only drive the floor-plan recognisers below, never the underlying map.
-        // "Move Map" mode and normal use: map gestures are fully enabled and the
-        // floor-plan recognisers are absent, so there is no cross-talk.
+        // Gesture lock for floor-plan editing
         uiView.isScrollEnabled = !isEditing
         uiView.isZoomEnabled   = !isEditing
         uiView.isRotateEnabled = !isEditing
@@ -147,10 +171,12 @@ struct IndoorMapView: UIViewRepresentable {
         if isEditing { coord.installFloorPlanGestures(on: uiView) }
         else         { coord.removeFloorPlanGestures(from: uiView) }
 
+        // Tap recognizer active only outside editing mode and when a graph is loaded
+        coord.tapRecognizer?.isEnabled = (navGraph != nil) && !isEditing
+
         // ── User location annotation ──────────────────────────────────────────
         if let loc = userLocation {
             if let ann = coord.userLocationAnnotation {
-                // KVO fires → MapKit glides the dot to the new position
                 ann.coordinate = loc.coordinate
             } else {
                 let ann = UserLocationAnnotation(loc.coordinate)
@@ -166,38 +192,23 @@ struct IndoorMapView: UIViewRepresentable {
             coord.userLocationAnnotation = nil
         }
 
-        // ── Camera tracking (manual, since showsUserLocation = false) ─────────
-        //
-        // Priority 1 — first-ever fix: snap to street level once, regardless of
-        // what tracking mode the button is in.  Also consumes a pending .follow
-        // press that arrived before location was available.
+        // ── Camera tracking ───────────────────────────────────────────────────
         if !coord.hasInitiallyCentered, let loc = userLocation {
             coord.hasInitiallyCentered = true
             centerCamera(on: loc, in: uiView, heading: userHeading, snapToStreetLevel: true)
             if trackingMode == .follow {
                 DispatchQueue.main.async { coord.parent.trackingMode = .none }
             }
-
-        // Priority 2 — explicit button press (tracking mode changed).
-        // prevTrackingMode is only updated when we successfully act on the change
-        // (i.e. when location is available). If location is nil, we leave
-        // prevTrackingMode stale so the next updateUIView retries automatically.
         } else if trackingMode != coord.prevTrackingMode, let loc = userLocation {
             coord.prevTrackingMode = trackingMode
             switch trackingMode {
             case .follow:
-                // One-shot "Locate Me": snap and zoom to street level once, then
-                // immediately release so location updates never re-centre against intent.
                 centerCamera(on: loc, in: uiView, heading: userHeading, snapToStreetLevel: true)
                 DispatchQueue.main.async { coord.parent.trackingMode = .none }
             case .followWithHeading:
                 centerCamera(on: loc, in: uiView, heading: userHeading, snapToStreetLevel: false)
-            default:
-                break   // .none just clears prevTrackingMode, no camera move needed
+            default: break
             }
-
-        // Priority 3 — continuous follow, only for navigation (.followWithHeading).
-        // .follow is always one-shot (handled above) so it never reaches here.
         } else if trackingMode == .followWithHeading, let loc = userLocation {
             let mc = uiView.centerCoordinate
             if abs(mc.latitude  - loc.coordinate.latitude)  > 0.00005 ||
@@ -206,7 +217,7 @@ struct IndoorMapView: UIViewRepresentable {
             }
         }
 
-        // ── Floor plan overlay — update in-place to avoid flicker on sliders ──
+        // ── Floor plan overlay ────────────────────────────────────────────────
         if let current = coord.floorPlanOverlay {
             if current.image !== floorPlanImage {
                 uiView.removeOverlay(current)
@@ -214,11 +225,11 @@ struct IndoorMapView: UIViewRepresentable {
                 coord.floorPlanOverlay = new
                 uiView.addOverlay(new)
             } else {
-                current.coordinate     = overlayCenter
-                current.widthMeters    = overlayWidthMeters
-                current.heightMeters   = overlayHeightMeters
+                current.coordinate      = overlayCenter
+                current.widthMeters     = overlayWidthMeters
+                current.heightMeters    = overlayHeightMeters
                 current.rotationDegrees = overlayRotationDegrees
-                current.alpha          = overlayAlpha
+                current.alpha           = overlayAlpha
                 coord.floorPlanRenderer?.setNeedsDisplay()
             }
         }
@@ -231,7 +242,6 @@ struct IndoorMapView: UIViewRepresentable {
                 || p!.0 != overlayCenter.latitude  || p!.1 != overlayCenter.longitude
                 || p!.2 != overlayWidthMeters       || p!.3 != overlayHeightMeters
                 || p!.4 != overlayRotationDegrees
-
             if paramsChanged {
                 uiView.removeOverlays(existingBoundaries)
                 let poly = buildingPolygon(center: overlayCenter,
@@ -265,44 +275,72 @@ struct IndoorMapView: UIViewRepresentable {
             coord.currentAccuracyCircle = nil
         }
 
-        // ── Route (border + fill) ─────────────────────────────────────────────
-        if let newRoute = route {
+        // ── Route: UV path takes precedence over legacy MKPolyline ────────────
+        //
+        // Three cases:
+        //  A) pathUVs is non-empty  → render glow+border+fill from UV waypoints,
+        //                             trimming the leading edge as the user advances.
+        //  B) pathUVs is empty and `route` is set → render legacy MKPolyline.
+        //  C) both empty            → clear all route overlays.
+
+        let pvs = pathUVs
+        if !pvs.isEmpty {
+            if pvs != coord.currentPathUVs {
+                // New or changed path: full rebuild from index 0
+                coord.currentPathUVs = pvs
+                coord.currentTrimIdx = 0
+                coord.rebuildRoute(in: uiView, from: 0)
+            } else if let uuv = userUV {
+                // Same path, user moved forward: advance trim index if closer
+                // to a later waypoint than the current trim index.
+                let newTrim = pvs.indices.min {
+                    pvs[$0].uvDist(to: uuv) < pvs[$1].uvDist(to: uuv)
+                } ?? 0
+                if newTrim > coord.currentTrimIdx {
+                    coord.currentTrimIdx = newTrim
+                    coord.rebuildRoute(in: uiView, from: newTrim)
+                }
+            }
+        } else if !coord.currentPathUVs.isEmpty {
+            // Path was explicitly cleared
+            coord.currentPathUVs = []
+            coord.currentTrimIdx = 0
+            coord.clearRouteOverlays(in: uiView)
+            if let ann = coord.destinationAnnotation {
+                uiView.removeAnnotation(ann)
+                coord.destinationAnnotation = nil
+            }
+        } else if let newRoute = route {
+            // Legacy MKPolyline route (DirectionsSheet etc.)
             if coord.currentRoute !== newRoute {
-                uiView.removeOverlays(uiView.overlays.compactMap { $0 as? BorderRoutePolyline })
-                uiView.removeOverlays(uiView.overlays.compactMap { $0 as? FillRoutePolyline })
+                coord.clearRouteOverlays(in: uiView)
                 coord.currentRoute = newRoute
                 var coords = [CLLocationCoordinate2D](repeating: .init(), count: newRoute.pointCount)
                 newRoute.getCoordinates(&coords, range: NSRange(location: 0, length: newRoute.pointCount))
+                uiView.addOverlay(GlowRoutePolyline(coordinates:   &coords, count: coords.count))
                 uiView.addOverlay(BorderRoutePolyline(coordinates: &coords, count: coords.count))
-                uiView.addOverlay(FillRoutePolyline(coordinates: &coords, count: coords.count))
+                uiView.addOverlay(FillRoutePolyline(coordinates:   &coords, count: coords.count))
             }
         } else if coord.currentRoute != nil {
-            uiView.removeOverlays(uiView.overlays.compactMap { $0 as? BorderRoutePolyline })
-            uiView.removeOverlays(uiView.overlays.compactMap { $0 as? FillRoutePolyline })
-            coord.currentRoute = nil
+            coord.clearRouteOverlays(in: uiView)
         }
     }
 
-    // MARK: Helpers
+    // MARK: - Helpers
 
     private func centerCamera(on loc: CLLocation, in mapView: MKMapView,
                               heading: CLLocationDirection,
                               snapToStreetLevel: Bool = false) {
         if snapToStreetLevel {
-            // First-ever fix: force a building-level zoom, ignore current altitude.
             let cam = MKMapCamera(lookingAtCenter: loc.coordinate,
                                   fromDistance: 150, pitch: 0, heading: 0)
             mapView.setCamera(cam, animated: true)
         } else if trackingMode == .followWithHeading && heading >= 0 {
-            // Heading mode needs a full camera to set the heading; preserve altitude.
             let cam = MKMapCamera(lookingAtCenter: loc.coordinate,
                                   fromDistance: mapView.camera.altitude,
                                   pitch: 0, heading: heading)
             mapView.setCamera(cam, animated: true)
         } else {
-            // Normal follow: only re-centre, never touch the zoom level.
-            // Using setCenter avoids creating a new camera mid-animation which would
-            // capture the transitional altitude and undo the initial street-level snap.
             mapView.setCenter(loc.coordinate, animated: true)
         }
     }
@@ -313,8 +351,6 @@ struct IndoorMapView: UIViewRepresentable {
                          rotationDegrees: overlayRotationDegrees, alpha: overlayAlpha)
     }
 
-    /// Builds a rotated rectangle polygon that outlines the placed floor plan.
-    /// Rotation convention matches IndoorMapOverlayRenderer (clockwise-visual).
     private func buildingPolygon(center: CLLocationCoordinate2D,
                                   widthM: Double, heightM: Double,
                                   rotDeg: Double) -> BuildingBoundaryPolygon {
@@ -323,28 +359,24 @@ struct IndoorMapView: UIViewRepresentable {
         let hw = widthM / 2, hh = heightM / 2
         let a = rotDeg * .pi / 180.0
         let ca = cos(a), sa = sin(a)
-
-        // For each local corner (lx, ly):
-        //   east  (m) = lx*ca + ly*sa
-        //   north (m) = –lx*sa + ly*ca
         func corner(_ lx: Double, _ ly: Double) -> CLLocationCoordinate2D {
             let east  =  lx * ca + ly * sa
             let north = -lx * sa + ly * ca
             return CLLocationCoordinate2D(latitude:  center.latitude  + north / mPerLat,
                                           longitude: center.longitude + east  / mPerLon)
         }
-
         var pts = [corner(-hw, -hh), corner(hw, -hh), corner(hw, hh), corner(-hw, hh)]
         return BuildingBoundaryPolygon(coordinates: &pts, count: 4)
     }
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
-    // MARK: Coordinator
+    // MARK: - Coordinator
 
     class Coordinator: NSObject, MKMapViewDelegate, UIGestureRecognizerDelegate {
         var parent: IndoorMapView
 
+        // ── Existing overlay / annotation state ───────────────────────────────
         var userLocationAnnotation: UserLocationAnnotation?
         var floorPlanOverlay:       IndoorMapOverlay?
         weak var floorPlanRenderer: IndoorMapOverlayRenderer?
@@ -354,31 +386,136 @@ struct IndoorMapView: UIViewRepresentable {
         var lastBoundaryParams:     (Double, Double, Double, Double, Double)?
         var hasInitiallyCentered    = false
 
-        // Floor-plan gesture recognizers (2-finger; installed only while editing)
+        // ── Tap-to-navigate state ─────────────────────────────────────────────
+        weak var tapRecognizer:      UITapGestureRecognizer?
+        var destinationAnnotation:   DestinationAnnotation?
+        /// The full UV path currently displayed.  Compared on each updateUIView
+        /// so we only rebuild overlays when the path actually changes.
+        var currentPathUVs:          [CGPoint] = []
+        /// Index into `currentPathUVs` marking how much of the leading edge has
+        /// been trimmed as the user advanced.
+        var currentTrimIdx:          Int = 0
+
+        // ── Floor-plan gesture recognizers (2-finger; editing only) ───────────
         private var fpPinch:    UIPinchGestureRecognizer?
         private var fpRotation: UIRotationGestureRecognizer?
         private var fpPan:      UIPanGestureRecognizer?
-
-        // Incremental gesture state
         private var prevScale       = CGFloat(1)
         private var prevRotation    = CGFloat(0)
         private var prevTranslation = CGPoint.zero
 
         init(_ parent: IndoorMapView) { self.parent = parent }
 
+        // MARK: - Tap-to-navigate
+
+        @objc func handleMapTap(_ gr: UITapGestureRecognizer) {
+            guard gr.state == .ended,
+                  !parent.isEditing,
+                  let graph   = parent.navGraph,
+                  let mapView = gr.view as? MKMapView else { return }
+
+            let screen = gr.location(in: mapView)
+            let geo    = mapView.convert(screen, toCoordinateFrom: mapView)
+            let uv     = geoToUV(geo)
+
+            guard let node = graph.nearestNode(to: uv) else { return }
+
+            // Place or update the destination pin at the snapped node's geo position
+            let pinCoord = uvToGeo(node.uv)
+            if let existing = destinationAnnotation {
+                existing.coordinate = pinCoord
+                existing.title      = node.name
+            } else {
+                let ann = DestinationAnnotation(pinCoord, title: node.name, nodeID: node.id)
+                destinationAnnotation = ann
+                mapView.addAnnotation(ann)
+            }
+
+            parent.onTapDestination?(node)
+        }
+
+        // MARK: - Coordinate conversion
+
+        /// Converts a geographic coordinate to a UV position on the floor plan.
+        ///
+        /// Math:
+        ///   Forward map:  east  =  lx·cos(a) + ly·sin(a)
+        ///                 north = −lx·sin(a) + ly·cos(a)
+        ///   Inverse (R⁻¹ = Rᵀ):
+        ///                 lx    =  east·cos(a) − north·sin(a)
+        ///                 ly    =  east·sin(a) + north·cos(a)
+        ///   UV:           u = 0.5 + lx / width
+        ///                 v = 0.5 − ly / height   (v increases downward, ly increases north)
+        func geoToUV(_ coord: CLLocationCoordinate2D) -> CGPoint {
+            let center = parent.overlayCenter
+            let mPerLat = 111_000.0
+            let mPerLon = 111_000.0 * cos(center.latitude * .pi / 180)
+
+            let northM = (coord.latitude  - center.latitude)  * mPerLat
+            let eastM  = (coord.longitude - center.longitude) * mPerLon
+
+            let a  = parent.overlayRotationDegrees * .pi / 180.0
+            let ca = cos(a), sa = sin(a)
+
+            let lx = eastM * ca - northM * sa
+            let ly = eastM * sa + northM * ca
+
+            return CGPoint(x: 0.5 + lx / parent.overlayWidthMeters,
+                           y: 0.5 - ly / parent.overlayHeightMeters)
+        }
+
+        /// Converts a UV position on the floor plan back to a geographic coordinate.
+        func uvToGeo(_ uv: CGPoint) -> CLLocationCoordinate2D {
+            let center = parent.overlayCenter
+            let mPerLat = 111_000.0
+            let mPerLon = 111_000.0 * cos(center.latitude * .pi / 180)
+
+            let lx = (uv.x - 0.5) * parent.overlayWidthMeters
+            let ly = (0.5 - uv.y) * parent.overlayHeightMeters
+
+            let a  = parent.overlayRotationDegrees * .pi / 180.0
+            let ca = cos(a), sa = sin(a)
+
+            let east  =  lx * ca + ly * sa
+            let north = -lx * sa + ly * ca
+
+            return CLLocationCoordinate2D(
+                latitude:  center.latitude  + north / mPerLat,
+                longitude: center.longitude + east  / mPerLon)
+        }
+
+        // MARK: - Route overlay management
+
+        /// Converts `currentPathUVs[startIdx...]` to geographic coordinates and
+        /// replaces all three route overlay layers (glow / border / fill).
+        func rebuildRoute(in mapView: MKMapView, from startIdx: Int) {
+            clearRouteOverlays(in: mapView)
+            let slice = Array(currentPathUVs.dropFirst(startIdx))
+            guard slice.count >= 2 else { return }
+            var coords = slice.map { uvToGeo($0) }
+            // Add layers bottom-to-top so fill renders above border, border above glow.
+            mapView.addOverlay(GlowRoutePolyline(coordinates:   &coords, count: coords.count))
+            mapView.addOverlay(BorderRoutePolyline(coordinates: &coords, count: coords.count))
+            mapView.addOverlay(FillRoutePolyline(coordinates:   &coords, count: coords.count))
+        }
+
+        func clearRouteOverlays(in mapView: MKMapView) {
+            mapView.removeOverlays(mapView.overlays.compactMap { $0 as? GlowRoutePolyline   })
+            mapView.removeOverlays(mapView.overlays.compactMap { $0 as? BorderRoutePolyline })
+            mapView.removeOverlays(mapView.overlays.compactMap { $0 as? FillRoutePolyline   })
+            currentRoute = nil
+        }
+
         // MARK: - Floor-plan gesture management
 
         func installFloorPlanGestures(on mapView: MKMapView) {
             guard fpPinch == nil else { return }
-
             let pinch    = UIPinchGestureRecognizer(target: self, action: #selector(handlePinch))
             let rotation = UIRotationGestureRecognizer(target: self, action: #selector(handleRotation))
             let pan      = UIPanGestureRecognizer(target: self, action: #selector(handlePan))
             pan.minimumNumberOfTouches = 2
             pan.maximumNumberOfTouches = 2
-
             for gr in [pinch, rotation, pan] as [UIGestureRecognizer] { gr.delegate = self }
-
             mapView.addGestureRecognizer(pinch)
             mapView.addGestureRecognizer(rotation)
             mapView.addGestureRecognizer(pan)
@@ -386,16 +523,13 @@ struct IndoorMapView: UIViewRepresentable {
         }
 
         func removeFloorPlanGestures(from mapView: MKMapView) {
-            [fpPinch, fpRotation, fpPan].forEach { gr in
-                if let gr { mapView.removeGestureRecognizer(gr) }
-            }
+            [fpPinch, fpRotation, fpPan].forEach { if let gr = $0 { mapView.removeGestureRecognizer(gr) } }
             fpPinch = nil; fpRotation = nil; fpPan = nil
         }
 
-        // Allow our three custom recognizers to fire simultaneously with each other,
-        // but never with MapKit's built-in gesture recognizers — that is what isolates
-        // the two modes. (In practice the map flags are also disabled in Adjust Image
-        // mode, so this is belt-and-suspenders for any edge-case recognizer ordering.)
+        // Our three custom floor-plan recognizers fire simultaneously with each
+        // other, but not with MapKit's built-in recognizers (and not with the
+        // tap recognizer).
         func gestureRecognizer(_ g: UIGestureRecognizer,
                                shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
             let ours: [UIGestureRecognizer?] = [fpPinch, fpRotation, fpPan]
@@ -404,58 +538,52 @@ struct IndoorMapView: UIViewRepresentable {
 
         @objc private func handlePinch(_ gr: UIPinchGestureRecognizer) {
             switch gr.state {
-            case .began:  prevScale = 1
+            case .began:   prevScale = 1
             case .changed:
                 let factor = gr.scale / prevScale
                 prevScale  = gr.scale
                 parent.onScaleFloorPlan?(factor)
-            default:      prevScale = 1
+            default: prevScale = 1
             }
         }
 
         @objc private func handleRotation(_ gr: UIRotationGestureRecognizer) {
             switch gr.state {
-            case .began:  prevRotation = 0
+            case .began:   prevRotation = 0
             case .changed:
                 let delta    = gr.rotation - prevRotation
                 prevRotation = gr.rotation
                 parent.onRotateFloorPlan?(Double(delta * 180 / .pi))
-            default:      prevRotation = 0
+            default: prevRotation = 0
             }
         }
 
         @objc private func handlePan(_ gr: UIPanGestureRecognizer) {
             guard let mapView = gr.view as? MKMapView else { return }
             switch gr.state {
-            case .began:  prevTranslation = .zero
+            case .began:   prevTranslation = .zero
             case .changed:
                 let t  = gr.translation(in: mapView)
                 let dx = t.x - prevTranslation.x
                 let dy = t.y - prevTranslation.y
                 prevTranslation = t
-                // Use mapView.convert to derive the geographic delta directly from
-                // MapKit's own projection. This is correct regardless of map position,
-                // zoom, or rotation — unlike span/size math which can invert direction
-                // when the floor plan is offset from the current viewport centre.
                 let mid     = CGPoint(x: mapView.bounds.midX, y: mapView.bounds.midY)
                 let ref     = mapView.convert(mid, toCoordinateFrom: mapView)
                 let shifted = mapView.convert(CGPoint(x: mid.x + dx, y: mid.y + dy),
                                               toCoordinateFrom: mapView)
                 parent.onMoveFloorPlan?(shifted.latitude  - ref.latitude,
                                         shifted.longitude - ref.longitude)
-            default:      prevTranslation = .zero
+            default: prevTranslation = .zero
             }
         }
+
+        // MARK: - MKMapViewDelegate
 
         func mapView(_ mapView: MKMapView, regionWillChangeAnimated animated: Bool) {
             DispatchQueue.main.async {
                 self.parent.currentMapCenter = mapView.centerCoordinate
                 self.parent.currentMapSpan   = mapView.region.span
             }
-            // Break tracking synchronously on a user-initiated pan (animated = false
-            // means a gesture, not a programmatic camera move).  Must be synchronous:
-            // a location update that fires in the same run-loop cycle would otherwise
-            // still see the old trackingMode and immediately re-centre the map.
             if !animated, parent.trackingMode != .none {
                 parent.trackingMode = .none
             }
@@ -469,29 +597,47 @@ struct IndoorMapView: UIViewRepresentable {
         }
 
         func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
-            guard annotation is UserLocationAnnotation else { return nil }
-            let id = "GoogleStyleUserDot"
-            let view = (mapView.dequeueReusableAnnotationView(withIdentifier: id) as? GoogleStyleUserDot)
-                ?? GoogleStyleUserDot(annotation: annotation, reuseIdentifier: id)
-            view.annotation = annotation
-            view.heading = parent.userHeading >= 0 ? parent.userHeading : nil
-            return view
+            if let dest = annotation as? DestinationAnnotation {
+                let id = "DestinationPin"
+                let v  = (mapView.dequeueReusableAnnotationView(withIdentifier: id) as? MKMarkerAnnotationView)
+                    ?? MKMarkerAnnotationView(annotation: annotation, reuseIdentifier: id)
+                v.annotation        = annotation
+                v.markerTintColor   = UIColor(red: 0.26, green: 0.58, blue: 0.97, alpha: 1)
+                v.glyphImage        = UIImage(systemName: "flag.fill")
+                v.titleVisibility   = .visible
+                v.canShowCallout    = true
+                // Bounce in when first placed
+                v.animatesWhenAdded = (dest.coordinate.latitude == destinationAnnotation?.coordinate.latitude)
+                return v
+            }
+            if annotation is UserLocationAnnotation {
+                let id = "GoogleStyleUserDot"
+                let v  = (mapView.dequeueReusableAnnotationView(withIdentifier: id) as? GoogleStyleUserDot)
+                    ?? GoogleStyleUserDot(annotation: annotation, reuseIdentifier: id)
+                v.annotation = annotation
+                v.heading    = parent.userHeading >= 0 ? parent.userHeading : nil
+                return v
+            }
+            return nil
         }
 
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
+
             if let floor = overlay as? IndoorMapOverlay {
                 let r = IndoorMapOverlayRenderer(overlay: floor, overlayImage: floor.image)
                 floorPlanRenderer = r
                 return r
             }
+
             if let boundary = overlay as? BuildingBoundaryPolygon {
                 let r = MKPolygonRenderer(polygon: boundary)
-                r.strokeColor = UIColor.systemIndigo.withAlphaComponent(0.85)
-                r.fillColor   = UIColor.systemIndigo.withAlphaComponent(0.06)
-                r.lineWidth   = 2.5
+                r.strokeColor     = UIColor.systemIndigo.withAlphaComponent(0.85)
+                r.fillColor       = UIColor.systemIndigo.withAlphaComponent(0.06)
+                r.lineWidth       = 2.5
                 r.lineDashPattern = [8, 6]
                 return r
             }
+
             if let circle = overlay as? MKCircle {
                 let r = MKCircleRenderer(circle: circle)
                 r.fillColor   = UIColor.systemBlue.withAlphaComponent(0.10)
@@ -499,19 +645,55 @@ struct IndoorMapView: UIViewRepresentable {
                 r.lineWidth   = 1
                 return r
             }
-            if let border = overlay as? BorderRoutePolyline {
-                let r = MKPolylineRenderer(polyline: border)
-                r.strokeColor = .white; r.lineWidth = 11
-                r.lineCap = .round;     r.lineJoin  = .round
+
+            // ── Google Maps–style three-layer path ────────────────────────────
+            //
+            // Layer 1 (bottom): wide, low-opacity blue glow → ambient halo effect
+            // Layer 2 (middle): white border               → crisp edge definition
+            // Layer 3 (top):    narrow, vibrant blue fill  → primary route colour
+            //
+            // lineWidth values are in map points and stay constant regardless of
+            // zoom because MKPolylineRenderer re-rasterises at each zoom level.
+
+            if let glow = overlay as? GlowRoutePolyline {
+                let r = MKPolylineRenderer(polyline: glow)
+                r.strokeColor = UIColor(red: 0.26, green: 0.58, blue: 0.97, alpha: 0.22)
+                r.lineWidth   = 22
+                r.lineCap     = .round
+                r.lineJoin    = .round
                 return r
             }
+
+            if let border = overlay as? BorderRoutePolyline {
+                let r = MKPolylineRenderer(polyline: border)
+                r.strokeColor = .white
+                r.lineWidth   = 14
+                r.lineCap     = .round
+                r.lineJoin    = .round
+                return r
+            }
+
             if let fill = overlay as? FillRoutePolyline {
                 let r = MKPolylineRenderer(polyline: fill)
                 r.strokeColor = UIColor(red: 0.26, green: 0.58, blue: 0.97, alpha: 1)
-                r.lineWidth = 6; r.lineCap = .round; r.lineJoin = .round
+                r.lineWidth   = 9
+                r.lineCap     = .round
+                r.lineJoin    = .round
                 return r
             }
+
             return MKOverlayRenderer(overlay: overlay)
         }
+    }
+}
+
+// MARK: - CGPoint UV helpers
+
+private extension CGPoint {
+    /// Euclidean distance in UV space.  Used for path-trim index lookup.
+    func uvDist(to other: CGPoint) -> Double {
+        let dx = Double(x - other.x)
+        let dy = Double(y - other.y)
+        return (dx * dx + dy * dy).squareRoot()
     }
 }
